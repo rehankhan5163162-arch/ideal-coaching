@@ -1,0 +1,818 @@
+/* ==========================================================================
+   Ideal Coaching Center - Dashboards Styles
+   Super Admin, Admin, and Student Specialized Views & Systems
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. STUDENT PORTAL DASHBOARD HERO & WIDGETS
+   -------------------------------------------------------------------------- */
+.student-hero-banner {
+  background: linear-gradient(135deg, #1e3a8a 0%, #0f172a 100%);
+  border-radius: var(--radius-xl);
+  padding: 1.75rem 2rem;
+  color: #ffffff;
+  margin-bottom: 1.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 10px 25px -5px rgba(30, 58, 138, 0.4);
+}
+
+.student-hero-banner::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  right: -10%;
+  width: 300px;
+  height: 300px;
+  background: radial-gradient(circle, rgba(245, 158, 11, 0.15) 0%, transparent 70%);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.student-hero-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  z-index: 2;
+}
+
+.student-hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(4px);
+  padding: 0.3rem 0.75rem;
+  border-radius: var(--radius-full);
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--accent-gold);
+  width: fit-content;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.student-hero-title {
+  font-family: var(--font-heading);
+  font-size: 1.65rem;
+  font-weight: 800;
+  color: #ffffff;
+  line-height: 1.2;
+}
+
+.student-hero-meta {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  font-size: 0.85rem;
+  color: #cbd5e1;
+  flex-wrap: wrap;
+}
+
+.student-hero-meta span {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.student-hero-meta strong {
+  color: #ffffff;
+}
+
+/* Attendance Progress Bar in Student View */
+.attendance-progress-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  margin-bottom: 1.75rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.attendance-progress-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.attendance-pct-display {
+  font-family: var(--font-heading);
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--primary-700);
+}
+
+.attendance-bar-track {
+  width: 100%;
+  height: 14px;
+  background-color: var(--slate-100);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  position: relative;
+  margin-bottom: 1rem;
+}
+
+.attendance-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #10b981, #059669);
+  border-radius: var(--radius-full);
+  transition: width 0.6s ease;
+}
+
+.attendance-breakdown-chips {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.85rem;
+}
+
+.attendance-chip {
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-direction: column;
+  background: var(--slate-50);
+  border: 1px solid var(--border-color);
+}
+
+.attendance-chip-label {
+  font-size: 0.725rem;
+  color: var(--slate-500);
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.attendance-chip-value {
+  font-family: var(--font-heading);
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--slate-900);
+}
+
+/* --------------------------------------------------------------------------
+   2. 12-MONTH FEE SCHEDULE SYSTEM
+   -------------------------------------------------------------------------- */
+.fee-schedule-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.25rem;
+  margin-top: 1rem;
+}
+
+.fee-month-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  position: relative;
+  transition: all var(--transition-fast);
+}
+
+.fee-month-card:hover {
+  box-shadow: var(--shadow-md);
+  border-color: var(--primary-300);
+}
+
+.fee-month-card.is-paid {
+  border-left: 4px solid var(--success-500);
+}
+
+.fee-month-card.is-pending {
+  border-left: 4px solid var(--warning-500);
+}
+
+.fee-month-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.fee-month-title {
+  font-family: var(--font-heading);
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--slate-900);
+}
+
+.fee-amount-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.fee-expected-label {
+  font-size: 0.775rem;
+  color: var(--slate-500);
+}
+
+.fee-amount-value {
+  font-family: var(--font-heading);
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: var(--slate-900);
+}
+
+.fee-meta-list {
+  font-size: 0.775rem;
+  color: var(--slate-600);
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  background: var(--slate-50);
+  padding: 0.65rem 0.85rem;
+  border-radius: var(--radius-md);
+}
+
+.fee-receipt-badge {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 700;
+  background: var(--primary-50);
+  color: var(--primary-700);
+  padding: 0.15rem 0.5rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--primary-200);
+}
+
+.fee-actions-row {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: auto;
+  flex-wrap: wrap;
+}
+
+/* --------------------------------------------------------------------------
+   3. ATTENDANCE MARKING INTERFACE & SUNDAY EXCLUSION
+   -------------------------------------------------------------------------- */
+.attendance-filter-bar {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem;
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.sunday-notice-banner {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: var(--radius-md);
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: #92400e;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.sunday-notice-banner i, .sunday-notice-banner svg {
+  width: 22px;
+  height: 22px;
+  color: var(--warning-600);
+  flex-shrink: 0;
+}
+
+.attendance-student-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.85rem 1.25rem;
+  border-bottom: 1px solid var(--border-color-subtle);
+  background: #ffffff;
+  transition: background-color var(--transition-fast);
+}
+
+.attendance-student-row:hover {
+  background-color: var(--slate-50);
+}
+
+.attendance-student-info {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.student-roll-tag {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.2rem 0.55rem;
+  border-radius: var(--radius-sm);
+  background: var(--slate-100);
+  color: var(--slate-700);
+}
+
+.attendance-toggle-group {
+  display: flex;
+  gap: 0.35rem;
+  background: var(--slate-100);
+  padding: 0.25rem;
+  border-radius: var(--radius-md);
+}
+
+.attendance-btn-pill {
+  padding: 0.35rem 0.85rem;
+  font-size: 0.775rem;
+  font-weight: 700;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: transparent;
+  color: var(--slate-600);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.attendance-btn-pill:hover {
+  background: rgba(255, 255, 255, 0.6);
+  color: var(--slate-900);
+}
+
+.attendance-btn-pill.active-present {
+  background: var(--success-600);
+  color: #ffffff;
+  box-shadow: 0 1px 3px rgba(16, 185, 129, 0.35);
+}
+
+.attendance-btn-pill.active-absent {
+  background: var(--danger-600);
+  color: #ffffff;
+  box-shadow: 0 1px 3px rgba(239, 68, 68, 0.35);
+}
+
+.attendance-btn-pill.active-leave {
+  background: var(--info-600);
+  color: #ffffff;
+  box-shadow: 0 1px 3px rgba(2, 132, 199, 0.35);
+}
+
+/* --------------------------------------------------------------------------
+   4. SYLLABUS & BOOKS CARDS & CHAPTER ACCORDION
+   -------------------------------------------------------------------------- */
+.syllabus-books-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1.5rem;
+  margin-top: 1.25rem;
+}
+
+.book-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.book-card-header {
+  padding: 1.15rem 1.25rem;
+  background: linear-gradient(135deg, var(--slate-900), var(--slate-800));
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.book-card-title {
+  font-family: var(--font-heading);
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.book-card-body {
+  padding: 1rem 1.25rem;
+  flex: 1;
+}
+
+.chapter-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.65rem 0.5rem;
+  border-bottom: 1px solid var(--border-color-subtle);
+  gap: 0.75rem;
+}
+
+.chapter-item:last-child {
+  border-bottom: none;
+}
+
+.chapter-title-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.chapter-order-badge {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--slate-100);
+  color: var(--slate-700);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.chapter-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--slate-800);
+}
+
+.chapter-status-active {
+  background: #f0fdf4;
+  border-left: 3px solid var(--success-500);
+}
+
+/* --------------------------------------------------------------------------
+   5. DIARY & ANNOUNCEMENTS VIEWER
+   -------------------------------------------------------------------------- */
+.diary-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  box-shadow: var(--shadow-sm);
+  position: relative;
+}
+
+.diary-date-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  background: var(--primary-50);
+  color: var(--primary-700);
+  padding: 0.25rem 0.65rem;
+  border-radius: var(--radius-full);
+  margin-bottom: 0.75rem;
+}
+
+.diary-content-text {
+  font-size: 0.925rem;
+  color: var(--slate-800);
+  line-height: 1.6;
+  white-space: pre-line;
+}
+
+.announcement-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  margin-bottom: 1.25rem;
+  box-shadow: var(--shadow-sm);
+  transition: all var(--transition-fast);
+}
+
+.announcement-card:hover {
+  box-shadow: var(--shadow-md);
+  border-color: var(--primary-200);
+}
+
+.announcement-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+  gap: 1rem;
+}
+
+.announcement-title {
+  font-family: var(--font-heading);
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--slate-900);
+}
+
+.announcement-meta {
+  font-size: 0.75rem;
+  color: var(--slate-500);
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.announcement-body {
+  font-size: 0.875rem;
+  color: var(--slate-700);
+  line-height: 1.55;
+  margin-bottom: 1rem;
+}
+
+/* --------------------------------------------------------------------------
+   6. STUDENT PROFILE TABS & DETAILS
+   -------------------------------------------------------------------------- */
+.profile-nav-tabs {
+  display: flex;
+  gap: 0.5rem;
+  border-bottom: 2px solid var(--border-color);
+  margin-bottom: 1.5rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.profile-tab-btn {
+  padding: 0.75rem 1.15rem;
+  font-family: var(--font-heading);
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--slate-600);
+  background: transparent;
+  border: none;
+  border-bottom: 3px solid transparent;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--transition-fast);
+  margin-bottom: -2px;
+}
+
+.profile-tab-btn:hover {
+  color: var(--primary-600);
+}
+
+.profile-tab-btn.active {
+  color: var(--primary-700);
+  border-bottom-color: var(--primary-600);
+  font-weight: 700;
+}
+
+.profile-info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1.25rem;
+}
+
+.profile-info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  background: var(--slate-50);
+  padding: 0.85rem 1rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color-subtle);
+}
+
+.profile-info-label {
+  font-size: 0.725rem;
+  color: var(--slate-500);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.profile-info-val {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--slate-900);
+}
+
+/* ==========================================================================
+   MOBILE RESPONSIVENESS OVERRIDES (< 768px & < 480px)
+   Strictly scoped to mobile viewports without altering desktop layouts
+   ========================================================================== */
+@media (max-width: 768px) {
+  /* 1. Student Hero Banner */
+  .student-hero-banner {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 1.25rem 1.15rem;
+    gap: 0.85rem;
+  }
+
+  .student-hero-title {
+    font-size: 1.25rem;
+    line-height: 1.25;
+  }
+
+  .student-hero-meta {
+    gap: 0.65rem;
+    font-size: 0.8rem;
+  }
+
+  /* 2. Attendance Progress & Breakdown Chips */
+  .attendance-progress-card {
+    padding: 1.15rem 1rem;
+  }
+
+  .attendance-progress-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.4rem;
+  }
+
+  .attendance-pct-display {
+    font-size: 1.65rem;
+  }
+
+  .attendance-breakdown-chips {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.65rem;
+  }
+
+  .attendance-chip {
+    padding: 0.6rem 0.75rem;
+  }
+
+  .attendance-chip-value {
+    font-size: 1.1rem;
+  }
+
+  /* 3. 12-Month Fee Schedule Grid */
+  .fee-schedule-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .fee-month-card {
+    padding: 1.1rem;
+  }
+
+  .fee-actions-row {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .fee-actions-row .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* 4. Attendance Filter Bar & Inline Overrides */
+  .attendance-filter-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+    padding: 1rem;
+  }
+
+  .attendance-filter-bar .form-group,
+  .attendance-filter-bar .form-control,
+  .attendance-filter-bar select,
+  .attendance-filter-bar input,
+  .attendance-filter-bar .btn,
+  #att-filter-date,
+  #att-filter-class,
+  #att-filter-group,
+  #diary-date-picker,
+  #diary-class-select,
+  #diary-group-select,
+  #syl-filter-class,
+  #syl-filter-group,
+  #fee-student-selector {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  /* 5. Attendance Student Row (Stacked on Mobile with Full-Width Toggles) */
+  .attendance-student-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+    padding: 0.85rem 1rem;
+  }
+
+  .attendance-student-info {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .attendance-toggle-group {
+    width: 100%;
+    display: flex;
+    gap: 0.25rem;
+  }
+
+  .attendance-btn-pill {
+    flex: 1;
+    text-align: center;
+    padding: 0.55rem 0.35rem;
+    font-size: 0.75rem;
+  }
+
+  /* 6. Sunday Notice Banner */
+  .sunday-notice-banner {
+    padding: 0.85rem 1rem;
+    font-size: 0.8rem;
+  }
+
+  /* 7. Syllabus & Books Grid */
+  .syllabus-books-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .book-card-header {
+    padding: 1rem;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .book-card-body {
+    padding: 0.85rem 1rem;
+  }
+
+  .chapter-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+    padding: 0.75rem 0.25rem;
+  }
+
+  .chapter-title-group {
+    width: 100%;
+  }
+
+  /* 8. Diary & Announcement Cards */
+  .diary-card,
+  .announcement-card {
+    padding: 1.15rem 1rem;
+  }
+
+  .announcement-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.35rem;
+  }
+
+  .announcement-title {
+    font-size: 1.05rem;
+  }
+
+  .announcement-meta {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  /* 9. Profile Navigation Tabs & Details Grid */
+  .profile-nav-tabs {
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 4px;
+    gap: 0.25rem;
+  }
+
+  .profile-tab-btn {
+    padding: 0.65rem 0.85rem;
+    font-size: 0.8rem;
+  }
+
+  .profile-info-grid {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Specific tweaks for screens <= 480px */
+  .student-hero-banner {
+    padding: 1rem 0.85rem;
+  }
+
+  .student-hero-title {
+    font-size: 1.15rem;
+  }
+
+  .student-hero-badge {
+    font-size: 0.7rem;
+    padding: 0.25rem 0.55rem;
+  }
+
+  .attendance-pct-display {
+    font-size: 1.45rem;
+  }
+
+  .fee-month-title {
+    font-size: 1rem;
+  }
+
+  .fee-amount-value {
+    font-size: 1.2rem;
+  }
+
+  .attendance-breakdown-chips {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+}
+

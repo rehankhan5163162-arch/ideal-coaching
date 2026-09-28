@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" width="100%" height="100%">
+  <defs>
+    <linearGradient id="gradPrimary" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e3a8a"/>
+      <stop offset="50%" stop-color="#2563eb"/>
+      <stop offset="100%" stop-color="#0284c7"/>
+    </linearGradient>
+    <linearGradient id="gradGold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f59e0b"/>
+      <stop offset="100%" stop-color="#fbbf24"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#0f172a" flood-opacity="0.25"/>
+    </filter>
+  </defs>
+
+  <!-- Outer Emblem Shield / Circle Background -->
+  <circle cx="120" cy="120" r="106" fill="url(#gradPrimary)" filter="url(#shadow)"/>
+  <circle cx="120" cy="120" r="98" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-dasharray="6,4" opacity="0.4"/>
+  <circle cx="120" cy="120" r="92" fill="#0f172a" opacity="0.85"/>
+
+  <!-- Academic Laurel Wreath Accents -->
+  <path d="M52 140 C 44 110, 52 75, 78 54 C 74 68, 76 84, 84 96 C 70 112, 62 128, 52 140 Z" fill="url(#gradGold)" opacity="0.85"/>
+  <path d="M188 140 C 196 110, 188 75, 162 54 C 166 68, 164 84, 156 96 C 170 112, 178 128, 188 140 Z" fill="url(#gradGold)" opacity="0.85"/>
+
+  <!-- Open Book of Knowledge -->
+  <path d="M120 132 C 108 122, 90 120, 68 126 C 68 152, 90 150, 120 162 C 150 150, 172 152, 172 126 C 150 120, 132 122, 120 132 Z" fill="#ffffff"/>
+  <path d="M120 133 L 120 161" stroke="#2563eb" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M78 135 C 92 131, 106 133, 114 138" stroke="#cbd5e1" stroke-width="1.5" stroke-linecap="round"/>
+  <path d="M78 142 C 92 138, 106 140, 114 145" stroke="#cbd5e1" stroke-width="1.5" stroke-linecap="round"/>
+  <path d="M162 135 C 148 131, 134 133, 126 138" stroke="#cbd5e1" stroke-width="1.5" stroke-linecap="round"/>
+  <path d="M162 142 C 148 138, 134 140, 126 145" stroke="#cbd5e1" stroke-width="1.5" stroke-linecap="round"/>
+
+  <!-- Graduation Cap (Mortarboard) -->
+  <polygon points="120,68 168,88 120,108 72,88" fill="url(#gradGold)"/>
+  <polygon points="120,72 160,88 120,104 80,88" fill="#d97706"/>
+  <!-- Cap Skull Base -->
+  <path d="M92 98 L 92 114 C 92 122, 148 122, 148 114 L 148 98 Z" fill="#b45309"/>
+  <!-- Tassel -->
+  <path d="M160 89 L 170 102 L 170 120" stroke="#fef08a" stroke-width="2" stroke-linecap="round" fill="none"/>
+  <circle cx="170" cy="122" r="3" fill="#fef08a"/>
+
+  <!-- Star of Excellence at Top -->
+  <polygon points="120,40 123,49 132,49 125,54 127,63 120,58 113,63 115,54 108,49 117,49" fill="#fbbf24"/>
+
+  <!-- Banner Ribbon at Bottom -->
+  <path d="M42 176 L 68 168 L 172 168 L 198 176 L 186 190 L 120 184 L 54 190 Z" fill="#1e293b"/>
+  <path d="M68 168 L 172 168 L 166 182 L 74 182 Z" fill="#2563eb"/>
+  <text x="120" y="178" font-family="'Outfit', 'Plus Jakarta Sans', sans-serif" font-size="9" font-weight="800" fill="#ffffff" text-anchor="middle" letter-spacing="1.5">EXCELLENCE</text>
+
+  <!-- Typography Outer Arc / Curved Text simulation or Clean Subtext -->
+  <text x="120" y="210" font-family="'Outfit', 'Plus Jakarta Sans', sans-serif" font-size="11" font-weight="800" fill="#f8fafc" text-anchor="middle" letter-spacing="1">IDEAL COACHING CENTER</text>
+  <text x="120" y="224" font-family="'Inter', sans-serif" font-size="7.5" font-weight="600" fill="#94a3b8" text-anchor="middle" letter-spacing="0.8">EST. 2010 • ACADEMIC PORTAL</text>
+</svg>
