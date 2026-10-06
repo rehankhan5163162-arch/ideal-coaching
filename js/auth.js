@@ -107,12 +107,42 @@ class AuthService {
       }
 
       // 3. Check Student Collection
-      const students = await window.FirebaseService.getCollection('students');
-      const matchedStudent = students.find(s => {
+      let students = await window.FirebaseService.getCollection('students');
+      let matchedStudent = students.find(s => {
         const sEmail = (s.email || '').toLowerCase().trim();
         const sRoll = (s.rollNumber || '').trim();
-        return (sEmail && sEmail === email) || (sRoll && sRoll === email) || (`student${sRoll}@ideal.edu` === email);
+        return (sEmail && sEmail === email) || 
+               (sRoll && sRoll === email) || 
+               (`student${sRoll}@ideal.edu` === email) ||
+               (s.fullName && s.fullName.toLowerCase().trim() === email);
       });
+
+      // If student not found locally, query live Cloud Firestore directly
+      // This guarantees that a student enrolled on a computer moments ago can log in on mobile immediately!
+      if (!matchedStudent && window.FirebaseService.isLive && window.FirebaseService.db) {
+        try {
+          const snapshot = await window.FirebaseService.db.collection('students').get();
+          if (!snapshot.empty) {
+            if (!window.FirebaseService.mockData['students']) window.FirebaseService.mockData['students'] = {};
+            snapshot.forEach(doc => {
+              const d = { id: doc.id, ...doc.data() };
+              window.FirebaseService.mockData['students'][doc.id] = d;
+            });
+            window.FirebaseService.saveLocalStore();
+            const liveStudents = Object.values(window.FirebaseService.mockData['students']);
+            matchedStudent = liveStudents.find(s => {
+              const sEmail = (s.email || '').toLowerCase().trim();
+              const sRoll = (s.rollNumber || '').trim();
+              return (sEmail && sEmail === email) || 
+                     (sRoll && sRoll === email) || 
+                     (`student${sRoll}@ideal.edu` === email) ||
+                     (s.fullName && s.fullName.toLowerCase().trim() === email);
+            });
+          }
+        } catch (cloudErr) {
+          console.warn('Live Cloud Firestore student lookup note:', cloudErr.message);
+        }
+      }
 
       if (matchedStudent) {
         if (matchedStudent.status === 'Inactive') {

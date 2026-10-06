@@ -585,8 +585,23 @@ class AppRouter {
             </button>
           </form>
         </div>
+
+        <div style="padding: 0.75rem 1.75rem; border-top: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; font-size: 0.75rem; color: var(--slate-500); background: var(--slate-50); border-bottom-left-radius: var(--radius-lg); border-bottom-right-radius: var(--radius-lg);">
+          <span>Multi-Device Sync:</span>
+          <button type="button" class="header-cloud-btn status-connecting" id="btn-login-cloud-status" style="padding: 0.2rem 0.6rem; font-size: 0.7rem;">
+            <span class="cloud-status-dot"></span>
+            <span class="cloud-status-text">Cloud Sync</span>
+          </button>
+        </div>
       </div>
     `;
+
+    // Bind login cloud status button
+    const loginCloudBtn = loginContainer.querySelector('#btn-login-cloud-status');
+    if (loginCloudBtn && window.CloudSyncManager) {
+      loginCloudBtn.onclick = () => window.CloudSyncManager.openAssistantModal();
+      window.CloudSyncManager.updateStatusBadge(window.FirebaseService.cloudStatus);
+    }
 
     const loginForm = loginContainer.querySelector('#portal-login-form');
     loginForm.onsubmit = async (e) => {

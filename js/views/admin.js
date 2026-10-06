@@ -375,7 +375,11 @@ const AdminView = {
         });
       }, 'Saving student & initializing 12-month academic fee schedule...', 'Ideal Coaching Center');
 
-      window.UIUtils.showToast('success', 'Student Created', 'Student account created successfully.');
+      if (window.FirebaseService.cloudStatus === 'online') {
+        window.UIUtils.showToast('success', 'Student Enrolled & Synced Live', 'Student account is live in Cloud Firestore. Student can log in from mobile or any device right away!');
+      } else {
+        window.UIUtils.showToast('warning', 'Student Saved Locally', 'Student saved on this computer. Click "Cloud Setup Required" in top bar to publish Firebase rules so mobile devices can sync.');
+      }
 
       // Automatically navigate to All Students view
       window.location.hash = '#students';

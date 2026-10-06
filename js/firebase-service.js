@@ -1,7 +1,7 @@
 /**
  * Ideal Coaching Center - Firebase & Real-time Database Service
- * Provides full Firestore integration with live onSnapshot listeners,
- * and built-in offline-resilient reactive storage engine.
+ * Provides full multi-device Firestore integration with live onSnapshot listeners,
+ * atomic batch operations, and resilient offline-fallback storage.
  */
 
 class FirebaseService {
@@ -9,10 +9,32 @@ class FirebaseService {
     this.isLive = false;
     this.db = null;
     this.auth = null;
+    this.cloudStatus = 'connecting'; // 'online', 'error', 'offline', 'connecting'
+    this.lastSyncError = null;
+    this.statusListeners = new Set();
     this.listeners = new Map(); // collection -> Set of callback functions
     this.storageKey = 'IDEAL_COACHING_CENTER_DB_V1';
     this.mockData = null;
     this.init();
+  }
+
+  /**
+   * Subscribe to cloud status changes (for UI badges and diagnostics)
+   */
+  onStatusChange(callback) {
+    this.statusListeners.add(callback);
+    try {
+      callback(this.cloudStatus, this.lastSyncError);
+    } catch (e) {}
+    return () => this.statusListeners.delete(callback);
+  }
+
+  setStatus(status, error = null) {
+    this.cloudStatus = status;
+    this.lastSyncError = error;
+    this.statusListeners.forEach(cb => {
+      try { cb(status, error); } catch (e) {}
+    });
   }
 
   async init() {
@@ -29,10 +51,209 @@ class FirebaseService {
           this.db = window.firebase.firestore();
           this.auth = window.firebase.auth();
           this.isLive = true;
-          console.log('✅ Connected to live Firebase Firestore & Auth for project:', window.IDEAL_FIREBASE_CONFIG.projectId);
+
+          // Attempt anonymous authentication as an extra compatibility layer
+          if (this.auth && !this.auth.currentUser) {
+            try {
+              await this.auth.signInAnonymously();
+              console.log('✅ Firebase Auth authenticated anonymously');
+            } catch (authErr) {
+              console.log('Firebase Auth note:', authErr.message);
+            }
+          }
+
+          // Test real cloud connection & auto-seed cloud if brand new project
+          await this.verifyCloudConnection();
         }
       } catch (err) {
-        console.warn('⚠️ Firebase live connection initialization note (operating with resilient local sync):', err);
+        console.warn('⚠️ Firebase live connection initialization note:', err);
+        this.setStatus('offline', err.message);
+      }
+    } else {
+      this.setStatus('offline', 'Firebase config missing or incomplete');
+    }
+  }
+
+  /**
+   * Verify Firestore read/write capabilities and sync cloud database
+   */
+  async verifyCloudConnection() {
+    if (!this.db) return;
+    try {
+      const ping = await this.db.collection('settings').doc('global_settings').get();
+      this.setStatus('online');
+      console.log('✅ Connected to live Firebase Firestore for project:', window.IDEAL_FIREBASE_CONFIG.projectId);
+
+      // If Firestore has never been initialized, seed all initial tables from local data to cloud
+      if (!ping.exists) {
+        console.log('🌱 First-time cloud setup: syncing all local records to Cloud Firestore...');
+        await this.syncAllLocalDataToCloud();
+      } else {
+        // Cloud exists! Cache settings locally and pull latest updates from Cloud into local cache
+        if (!this.mockData.settings) this.mockData.settings = {};
+        this.mockData.settings['global_settings'] = { id: ping.id, ...ping.data() };
+        this.saveLocalStore();
+        await this.pullAllCloudDataToLocal();
+      }
+    } catch (err) {
+      console.error('⚠️ Firebase Firestore connection test failed:', err);
+      this.setStatus('error', err.message);
+    }
+  }
+
+  /**
+   * Pull all collections from Cloud Firestore into local cache so mobile devices receive newly enrolled students
+   */
+  async pullAllCloudDataToLocal() {
+    if (!this.db || !this.isLive) return;
+    try {
+      const collectionsToPull = [
+        'settings',
+        'admins',
+        'students',
+        'fees',
+        'receipts',
+        'attendance',
+        'announcements',
+        'diary',
+        'books',
+        'chapters'
+      ];
+
+      for (const col of collectionsToPull) {
+        try {
+          const snapshot = await this.db.collection(col).get();
+          if (!snapshot.empty) {
+            if (!this.mockData[col]) this.mockData[col] = {};
+            snapshot.forEach(doc => {
+              this.mockData[col][doc.id] = { id: doc.id, ...doc.data() };
+            });
+            this.notifySubscribers(col);
+          }
+        } catch (e) {
+          console.warn(`Could not pull collection ${col} from cloud:`, e.message);
+        }
+      }
+      this.saveLocalStore();
+      this.setStatus('online');
+    } catch (err) {
+      console.warn('Pull cloud data general note:', err);
+    }
+  }
+
+  /**
+   * Upload all local records (students, fees, attendance, diary, syllabus, etc.) to Cloud Firestore
+   * Ensures that students created on a computer are uploaded so mobile phones immediately see them.
+   */
+  async syncAllLocalDataToCloud() {
+    if (!this.db) {
+      return { success: false, message: 'Firebase Firestore is not initialized.' };
+    }
+
+    try {
+      // 1. Verify Firestore write access first
+      const pingTest = await this.testCloudConnection();
+      if (!pingTest.success) {
+        return { 
+          success: false, 
+          message: pingTest.message || 'Firestore rules are currently denying write access. Please enable rules in Firebase Console.', 
+          code: pingTest.code 
+        };
+      }
+
+      // 2. Gather all collections from current local store
+      const collectionsToSync = [
+        'settings',
+        'admins',
+        'students',
+        'fees',
+        'receipts',
+        'attendance',
+        'announcements',
+        'diary',
+        'books',
+        'chapters',
+        'audit_logs'
+      ];
+
+      let totalSynced = 0;
+      let batch = this.db.batch();
+      let batchCount = 0;
+
+      for (const col of collectionsToSync) {
+        const records = this.mockData[col];
+        if (!records) continue;
+
+        for (const [docId, docData] of Object.entries(records)) {
+          if (!docData) continue;
+          const ref = this.db.collection(col).doc(docId);
+          batch.set(ref, docData, { merge: true });
+          batchCount++;
+          totalSynced++;
+
+          // Firestore batches limit to 500 operations
+          if (batchCount >= 400) {
+            await batch.commit();
+            batch = this.db.batch();
+            batchCount = 0;
+          }
+        }
+      }
+
+      if (batchCount > 0) {
+        await batch.commit();
+      }
+
+      this.setStatus('online');
+      console.log(`✅ Multi-device cloud sync successful: ${totalSynced} records uploaded to Cloud Firestore!`);
+      return { 
+        success: true, 
+        count: totalSynced, 
+        message: `Successfully synchronized ${totalSynced} records to Cloud Firestore! All devices (mobiles & computers) can now access this data in real time.` 
+      };
+    } catch (err) {
+      console.error('⚠️ Cloud sync failed:', err);
+      this.setStatus('error', err.message);
+      return { success: false, message: err.message, code: err.code };
+    }
+  }
+
+  /**
+   * Seed initial data directly into Cloud Firestore (legacy alias)
+   */
+  async seedCloudDatabase() {
+    return this.syncAllLocalDataToCloud();
+  }
+
+  /**
+   * Diagnostic tester: tests real read and write permissions to Firestore
+   */
+  async testCloudConnection() {
+    if (!this.db) {
+      return { success: false, message: 'Firebase SDK or Firestore not initialized.' };
+    }
+    try {
+      const testId = `ping_${Date.now()}`;
+      const testRef = this.db.collection('settings').doc(testId);
+      await testRef.set({ test: true, timestamp: new Date().toISOString() });
+      await testRef.delete();
+      this.setStatus('online');
+      return { success: true, message: 'Cloud Firestore is fully accessible and connected! All devices can read and write.' };
+    } catch (err) {
+      this.setStatus('error', err.message);
+      return { success: false, message: err.message, code: err.code };
+    }
+  }
+
+  /**
+   * Helper to display user-friendly sync alerts when Firestore rejects saves
+   */
+  handleSyncError(operation, collectionName, error) {
+    if (window.UIUtils && typeof window.UIUtils.showToast === 'function') {
+      if (error.code === 'permission-denied' || (error.message && error.message.toLowerCase().includes('permission'))) {
+        window.UIUtils.showToast('error', 'Cloud Sync Failed (Permission Denied)', 'Firebase Firestore rejected the save. Update Firestore Rules in Firebase Console so all devices can sync.');
+      } else {
+        window.UIUtils.showToast('warning', 'Cloud Sync Issue', `Saved locally, but cloud sync failed: ${error.message}`);
       }
     }
   }
@@ -163,16 +384,20 @@ class FirebaseService {
       try {
         unsubscribeFirestore = this.db.collection(collectionName).onSnapshot((snapshot) => {
           const docs = [];
-          if (!this.mockData[collectionName]) this.mockData[collectionName] = {};
+          const collectionMap = {};
           snapshot.forEach(doc => {
             const data = { id: doc.id, ...doc.data() };
             docs.push(data);
-            this.mockData[collectionName][doc.id] = data;
+            collectionMap[doc.id] = data;
           });
+          // Replace local cache with live Firestore snapshot data
+          this.mockData[collectionName] = collectionMap;
           this.saveLocalStore();
+          this.setStatus('online');
           callback(docs);
         }, (err) => {
           console.warn(`Firestore onSnapshot fallback for ${collectionName}:`, err.message);
+          this.setStatus('error', err.message);
         });
       } catch (err) {
         console.warn(`Could not attach Firestore onSnapshot to ${collectionName}:`, err);
@@ -209,8 +434,11 @@ class FirebaseService {
     if (this.isLive && this.db) {
       try {
         await this.db.collection(collectionName).doc(id).set(docData);
+        this.setStatus('online');
       } catch (err) {
-        console.warn(`Firestore write note for ${collectionName}/${id}:`, err.message);
+        console.error(`Firestore write error for ${collectionName}/${id}:`, err);
+        this.setStatus('error', err.message);
+        this.handleSyncError('Save', collectionName, err);
       }
     }
 
@@ -224,28 +452,27 @@ class FirebaseService {
     if (this.isLive && this.db) {
       try {
         const snapshot = await this.db.collection(collectionName).get();
-        if (!snapshot.empty) {
-          const docs = [];
+        const docs = [];
+        const collectionMap = {};
+        snapshot.forEach(doc => {
+          const d = { id: doc.id, ...doc.data() };
+          docs.push(d);
+          collectionMap[doc.id] = d;
+        });
+
+        // If Firestore had documents, cleanly merge into local cache and return them
+        if (docs.length > 0) {
           if (!this.mockData[collectionName]) this.mockData[collectionName] = {};
-          snapshot.forEach(doc => {
-            const d = { id: doc.id, ...doc.data() };
-            docs.push(d);
-            this.mockData[collectionName][doc.id] = d;
-          });
+          this.mockData[collectionName] = { ...this.mockData[collectionName], ...collectionMap };
           this.saveLocalStore();
-          return docs;
-        } else if (this.mockData[collectionName]) {
-          // If Firestore is empty on first setup, seed initial records to Firestore in background
-          const seedDocs = Object.values(this.mockData[collectionName]);
-          for (const s of seedDocs) {
-            try {
-              this.db.collection(collectionName).doc(s.id).set(s);
-            } catch (e) {}
-          }
-          return seedDocs;
+          this.setStatus('online');
+          return Object.values(this.mockData[collectionName]);
         }
+        this.setStatus('online');
+        return this.mockData[collectionName] ? Object.values(this.mockData[collectionName]) : [];
       } catch (err) {
         console.warn(`Firestore read fallback for ${collectionName}:`, err.message);
+        this.setStatus('error', err.message);
       }
     }
 
@@ -264,10 +491,12 @@ class FirebaseService {
           const d = { id: docSnap.id, ...docSnap.data() };
           if (!this.mockData[collectionName]) this.mockData[collectionName] = {};
           this.mockData[collectionName][id] = d;
+          this.setStatus('online');
           return d;
         }
       } catch (err) {
         console.warn(`Firestore getDoc fallback for ${collectionName}/${id}:`, err.message);
+        this.setStatus('error', err.message);
       }
     }
 
@@ -293,8 +522,11 @@ class FirebaseService {
     if (this.isLive && this.db) {
       try {
         await this.db.collection(collectionName).doc(id).set(updated, { merge: true });
+        this.setStatus('online');
       } catch (err) {
-        console.warn(`Firestore update note for ${collectionName}/${id}:`, err.message);
+        console.error(`Firestore update error for ${collectionName}/${id}:`, err);
+        this.setStatus('error', err.message);
+        this.handleSyncError('Update', collectionName, err);
       }
     }
 
@@ -316,9 +548,12 @@ class FirebaseService {
     if (this.isLive && this.db) {
       try {
         await this.db.collection(collectionName).doc(id).delete();
+        this.setStatus('online');
         deleted = true;
       } catch (err) {
-        console.warn(`Firestore delete note for ${collectionName}/${id}:`, err.message);
+        console.error(`Firestore delete error for ${collectionName}/${id}:`, err);
+        this.setStatus('error', err.message);
+        this.handleSyncError('Delete', collectionName, err);
       }
     }
 
@@ -334,11 +569,15 @@ class FirebaseService {
    */
   async isRollNumberTaken(rollNumber, excludeStudentId = null) {
     const students = await this.getCollection('students');
-    return students.some(s => s.rollNumber.trim().toLowerCase() === rollNumber.trim().toLowerCase() && s.id !== excludeStudentId);
+    const targetRoll = String(rollNumber || '').trim().toLowerCase();
+    return students.some(s => {
+      const sRoll = String(s.rollNumber || '').trim().toLowerCase();
+      return sRoll === targetRoll && s.id !== excludeStudentId;
+    });
   }
 
   /**
-   * Initialize 12-month fee schedule for a student
+   * Initialize 12-month fee schedule for a student (Atomic Batch Write)
    */
   async initStudentFeeSchedule(student) {
     const settings = await this.getSystemSettings();
@@ -351,7 +590,11 @@ class FirebaseService {
       defaultAmount = Number(settings[`defaultFee${student.class}`]) || 3000;
     }
 
+    if (!this.mockData['fees']) this.mockData['fees'] = {};
+
     const fees = [];
+    const batch = (this.isLive && this.db) ? this.db.batch() : null;
+
     for (let i = 0; i < months.length; i++) {
       const monthName = months[i];
       const feeRecord = {
@@ -376,9 +619,30 @@ class FirebaseService {
         receiptAvailableToStudent: false,
         createdAt: new Date().toISOString()
       };
-      await this.addDocument('fees', feeRecord);
+
+      this.mockData['fees'][feeRecord.id] = feeRecord;
       fees.push(feeRecord);
+
+      if (batch) {
+        const ref = this.db.collection('fees').doc(feeRecord.id);
+        batch.set(ref, feeRecord);
+      }
     }
+
+    this.saveLocalStore();
+    this.notifySubscribers('fees');
+
+    if (batch) {
+      try {
+        await batch.commit();
+        this.setStatus('online');
+      } catch (err) {
+        console.error('Batch fee write error:', err);
+        this.setStatus('error', err.message);
+        this.handleSyncError('Fee Schedule Batch', 'fees', err);
+      }
+    }
+
     return fees;
   }
 
