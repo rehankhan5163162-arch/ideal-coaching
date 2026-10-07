@@ -18,6 +18,10 @@ service cloud.firestore {
       allow read: if true;
       allow write, delete: if true;
     }
+    match /system_settings/{doc} {
+      allow read: if true;
+      allow write, delete: if true;
+    }
 
     // 2. Student Directory - Hackers cannot inject spam; must have valid student data
     match /students/{studentId} {
@@ -74,6 +78,26 @@ service cloud.firestore {
     match /admins/{id} {
       allow read: if true;
       allow write, delete: if isValidSize();
+    }
+
+    // 7. Student Notifications (Live alerts, fee receipts, circulars)
+    match /notifications/{id} {
+      allow read: if true;
+      allow create, update, delete: if isValidSize();
+    }
+
+    // 8. WhatsApp Communication & Notification Audit Logs
+    match /whatsapp_settings/{doc} {
+      allow read: if true;
+      allow write, delete: if true;
+    }
+    match /whatsapp_templates/{id} {
+      allow read: if true;
+      allow write, delete: if isValidSize();
+    }
+    match /whatsapp_logs/{id} {
+      allow read, create: if isValidSize();
+      allow update, delete: if isValidSize();
     }
   }
 }

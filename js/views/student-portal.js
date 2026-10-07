@@ -292,6 +292,7 @@ const StudentPortalView = {
       const student = await window.FirebaseService.getDocument('students', studentUser.studentId || studentUser.id);
       if (!student) return;
       const fees = await window.FirebaseService.getCollection('fees');
+      const receipts = await window.FirebaseService.getCollection('receipts');
       const studentFees = fees.filter(f => f.studentId === student.id).sort((a, b) => a.monthOrder - b.monthOrder);
 
       // Student Fee Filtering: The student must ONLY see the paid month fee box and receipt in their account
@@ -328,7 +329,9 @@ const StudentPortalView = {
               </div>
             ` : `
               <div class="fee-schedule-grid">
-                ${paidFees.map(fee => `
+                ${paidFees.map(fee => {
+                  const rcpt = receipts.find(r => r.receiptNumber === fee.receiptNumber);
+                  return `
                   <div class="fee-month-card is-paid">
                     <div class="fee-month-header">
                       <span class="fee-month-title">${fee.month}</span>
@@ -347,6 +350,8 @@ const StudentPortalView = {
 
                     <div class="fee-meta-list">
                       <div>Paid On: <strong>${window.UIUtils.formatDate(fee.paymentDate || fee.createdAt)}</strong></div>
+                      ${rcpt && rcpt.isMultiMonth ? `<div style="color: var(--primary-700); font-size: 0.75rem; font-weight: 700;">Part of Multi-Month Receipt (${rcpt.monthsCount || (rcpt.months ? rcpt.months.length : '')} Months)</div>` : ''}
+                      ${rcpt && rcpt.lateFeeAmount > 0 && !rcpt.lateFeeWaived ? `<div style="color: #b45309; font-size: 0.725rem; font-weight: 600;">Incl. Late Fine: ${window.UIUtils.formatCurrency(rcpt.lateFeeAmount)}</div>` : ''}
                       <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.25rem;">
                         <span>Receipt:</span>
                         <span class="fee-receipt-badge">#${fee.receiptNumber}</span>
@@ -369,7 +374,8 @@ const StudentPortalView = {
                       `}
                     </div>
                   </div>
-                `).join('')}
+                `;
+                }).join('')}
               </div>
             `}
           </div>
@@ -743,7 +749,12 @@ const StudentPortalView = {
       if (!student) return;
       const notifications = await window.FirebaseService.getCollection('notifications');
       const myNotifs = notifications
-        .filter(n => n.studentId === student.id || n.rollNumber === student.rollNumber)
+        .filter(n => n.studentId === student.id || n.rollNumber === student.rollNumber || n.targetClass === student.class || n.targetClass === 'All')
+        .filter(n => {
+          const t = (n.title || '').toLowerCase();
+          const m = (n.message || '').toLowerCase();
+          return !t.includes('cloud') && !m.includes('cloud') && !m.includes('firebase');
+        })
         .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
       container.innerHTML = `
@@ -760,8 +771,15 @@ const StudentPortalView = {
 
           <div style="padding: 1.5rem;">
             ${myNotifs.length === 0 ? `
-              <div class="table-empty-state">
-                <p>No notifications at this time.</p>
+              <div class="table-empty-state" style="padding: 3rem 1.5rem; text-align: center;">
+                <div style="width: 48px; height: 48px; border-radius: 50%; background: var(--primary-50); color: var(--primary-600); display: inline-flex; align-items: center; justify-content: center; margin-bottom: 0.75rem;">
+                  <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                    <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                  </svg>
+                </div>
+                <h4 style="font-size: 1rem; font-weight: 700; color: var(--slate-800); margin-bottom: 0.25rem;">All Caught Up!</h4>
+                <p style="font-size: 0.85rem; color: var(--slate-500); margin: 0;">No unread student notifications. Official circulars, attendance alerts, and fee receipts will appear here.</p>
               </div>
             ` : `
               <div style="display: flex; flex-direction: column; gap: 0.75rem;">

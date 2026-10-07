@@ -1,7 +1,8 @@
 /**
- * Ideal Coaching Center - Global Loading System
- * Enforces a strict minimum display time of 5 seconds (5000ms)
- * for all qualifying asynchronous operations.
+ * Ideal Coaching Center - Global High-Performance Loading System
+ * Fast, streamlined 2-second maximum duration with an extreme-level
+ * professional multi-layer orbital gyroscope animation and progress telemetry.
+ * Official Organization: Ideal Coaching Center
  */
 
 class GlobalLoadingManager {
@@ -10,13 +11,12 @@ class GlobalLoadingManager {
     this.titleEl = null;
     this.messageEl = null;
     this.progressFillEl = null;
-    this.timerEl = null;
+    this.percentEl = null;
     this.cardEl = null;
     this.activeCount = 0;
     this.startTime = null;
     this.progressInterval = null;
-    this.minDuration = 5000; // Strictly 5000ms minimum display time
-    this.currentOperationPromise = null;
+    this.defaultDuration = 1600; // Fast & snappy (Strictly capped under 2000ms)
     this.init();
   }
 
@@ -26,6 +26,7 @@ class GlobalLoadingManager {
       this.titleEl = document.getElementById('loader-title');
       this.messageEl = document.getElementById('loader-message');
       this.progressFillEl = document.getElementById('loader-progress-fill');
+      this.percentEl = document.getElementById('loader-percent');
       this.cardEl = document.getElementById('loader-card');
       return;
     }
@@ -39,17 +40,37 @@ class GlobalLoadingManager {
 
     overlay.innerHTML = `
       <div class="loader-card" id="loader-card">
+        <!-- Ambient Radial Glow Halo -->
+        <div class="loader-ambient-glow"></div>
+
+        <!-- Extreme-Level Multi-Ring Holographic Gyroscope -->
         <div class="loader-spinner-wrapper" id="loader-spinner-wrapper">
-          <div class="loader-orbit-ring"></div>
-          <div class="loader-orbit-ring-inner"></div>
-          <img src="assets/logo.svg" alt="Ideal Coaching Center" class="loader-center-icon" />
+          <div class="loader-orbit-outer"></div>
+          <div class="loader-orbit-middle"></div>
+          <div class="loader-orbit-inner"></div>
+          <div class="loader-satellite-orbit">
+            <div class="loader-satellite-dot"></div>
+          </div>
+          <div class="loader-core-shield">
+            <img src="assets/logo.svg" alt="Ideal Coaching Center" class="loader-center-icon" />
+          </div>
         </div>
+
         <h3 class="loader-title" id="loader-title">Ideal Coaching Center</h3>
         <p class="loader-message" id="loader-message">Processing request...</p>
+
+        <!-- Precision Telemetry Progress Bar -->
         <div class="loader-progress-track">
-          <div class="loader-progress-fill" id="loader-progress-fill"></div>
+          <div class="loader-progress-fill" id="loader-progress-fill">
+            <div class="loader-progress-spark"></div>
+          </div>
         </div>
-        <span class="loader-subtext" id="loader-subtext">Securing real-time connection...</span>
+
+        <div class="loader-meta-row">
+          <span class="loader-subtext" id="loader-subtext">Securing portal connection...</span>
+          <span class="loader-percent" id="loader-percent">0%</span>
+        </div>
+
         <div id="loader-action-container" style="display: none; margin-top: 1.25rem; gap: 0.5rem; width: 100%;"></div>
       </div>
     `;
@@ -59,6 +80,7 @@ class GlobalLoadingManager {
     this.titleEl = overlay.querySelector('#loader-title');
     this.messageEl = overlay.querySelector('#loader-message');
     this.progressFillEl = overlay.querySelector('#loader-progress-fill');
+    this.percentEl = overlay.querySelector('#loader-percent');
     this.cardEl = overlay.querySelector('#loader-card');
   }
 
@@ -74,24 +96,25 @@ class GlobalLoadingManager {
     const spinner = this.overlay.querySelector('#loader-spinner-wrapper');
     if (spinner) spinner.style.display = 'flex';
     const subtext = this.overlay.querySelector('#loader-subtext');
-    if (subtext) subtext.innerText = 'Securing real-time connection...';
+    if (subtext) subtext.innerText = 'Securing portal connection...';
+    if (this.percentEl) this.percentEl.innerText = '0%';
   }
 
   /**
-   * Show loader with specific message, title, and target duration
+   * Show loader with specific message, title, and target duration (strictly capped at 2 seconds)
    */
-  show(message = 'Please wait...', title = 'Ideal Coaching Center', targetDuration = 5000) {
+  show(message = 'Please wait...', title = 'Ideal Coaching Center', targetDuration = 1600) {
     this.init();
     this.resetVisuals();
     this.activeCount++;
 
-    const clampedDuration = Math.min(5000, Math.max(200, targetDuration));
+    // Clamp duration to max 2000ms (2 seconds)
+    const clampedDuration = Math.min(2000, Math.max(200, targetDuration));
 
     if (this.titleEl) this.titleEl.textContent = title;
     if (this.messageEl) this.messageEl.textContent = message;
 
     if (!this.overlay.classList.contains('active')) {
-      this.minDuration = clampedDuration;
       this.overlay.classList.add('active');
       document.body.style.overflow = 'hidden';
       this.startTime = Date.now();
@@ -100,29 +123,34 @@ class GlobalLoadingManager {
   }
 
   /**
-   * Smoothly animates the progress bar over the specified interval (max 5000ms)
+   * Smoothly animates progress bar and telemetry counter up to 2000ms max
    */
-  startProgressBar(duration = 5000) {
+  startProgressBar(duration = 1600) {
     if (this.progressInterval) clearInterval(this.progressInterval);
     if (!this.progressFillEl) return;
 
     this.progressFillEl.style.width = '0%';
+    if (this.percentEl) this.percentEl.textContent = '0%';
     const start = Date.now();
 
     this.progressInterval = setInterval(() => {
       const elapsed = Date.now() - start;
-      const progress = Math.min((elapsed / duration) * 94, 94); // Reach 94% smoothly before finish
+      const progress = Math.min((elapsed / duration) * 96, 96); // Smooth ramp to 96%
+      const rounded = Math.floor(progress);
+
       this.progressFillEl.style.width = `${progress}%`;
+      if (this.percentEl) this.percentEl.textContent = `${rounded}%`;
 
       if (elapsed >= duration && this.activeCount <= 0) {
         this.progressFillEl.style.width = '100%';
+        if (this.percentEl) this.percentEl.textContent = '100%';
         clearInterval(this.progressInterval);
       }
-    }, 40);
+    }, 25);
   }
 
   /**
-   * Direct hide
+   * Direct hide with smooth completion snap
    */
   async hide(force = false) {
     this.activeCount = Math.max(0, this.activeCount - 1);
@@ -134,8 +162,11 @@ class GlobalLoadingManager {
     if (this.progressFillEl) {
       this.progressFillEl.style.width = '100%';
     }
+    if (this.percentEl) {
+      this.percentEl.textContent = '100%';
+    }
 
-    // Brief delay to let user see 100% completion
+    // Brief instant micro-delay so user sees 100% completion before smooth fade
     await new Promise(resolve => setTimeout(resolve, 80));
 
     if (this.progressInterval) {
@@ -152,16 +183,19 @@ class GlobalLoadingManager {
   }
 
   /**
-   * Wraps an async function or Promise with a loading overlay (capped at 5 seconds maximum).
-   * Prevents nested stacking delays so operations never exceed 5 seconds total.
+   * Wraps an async operation with the loader.
+   * Total wait is capped strictly at 2.0 seconds maximum.
+   * If the operation takes time naturally (e.g. heavy cloud write), it will only take the natural time.
+   * If the operation is fast, it resolves smoothly within 1.2s - 1.8s without annoying 5-second stalls.
    */
-  async wrap(asyncFn, message = 'Processing request...', title = 'Ideal Coaching Center', targetDuration = 5000) {
+  async wrap(asyncFn, message = 'Processing request...', title = 'Ideal Coaching Center', targetDuration = 1600) {
     // If loader is already actively running (nested call), execute directly without stacking extra delay
     if (this.overlay && this.overlay.classList.contains('active') && this.startTime) {
       return await (typeof asyncFn === 'function' ? asyncFn() : asyncFn);
     }
 
-    const duration = Math.min(5000, Math.max(200, targetDuration));
+    // Capped strictly at 2000ms max
+    const duration = Math.min(2000, Math.max(200, targetDuration));
     this.show(message, title, duration);
     const startOpTime = Date.now();
 
@@ -169,7 +203,7 @@ class GlobalLoadingManager {
       // Execute the actual asynchronous operation
       const result = await (typeof asyncFn === 'function' ? asyncFn() : asyncFn);
 
-      // Enforce display time up to targetDuration (strictly max 5000ms)
+      // Fast display pacing (strictly capped at 2000ms max)
       const elapsed = Date.now() - startOpTime;
       const waitRemaining = Math.max(0, duration - elapsed);
 
@@ -199,6 +233,7 @@ class GlobalLoadingManager {
   showErrorState(error, retryFn, message, title) {
     if (this.progressInterval) clearInterval(this.progressInterval);
     if (this.progressFillEl) this.progressFillEl.style.width = '100%';
+    if (this.percentEl) this.percentEl.textContent = 'Failed';
 
     const spinner = this.overlay.querySelector('#loader-spinner-wrapper');
     if (spinner) spinner.style.display = 'none';
@@ -209,7 +244,7 @@ class GlobalLoadingManager {
     let friendlyMessage = 'We could not complete this operation at the moment. Please check your connection and try again.';
     if (error && error.message) {
       if (error.message.includes('permission-denied')) {
-        friendlyMessage = 'You do not have administrative permission to perform this action.';
+        friendlyMessage = 'Access restricted or session expired. Please verify your permissions.';
       } else if (error.message.includes('not-found')) {
         friendlyMessage = 'The requested record could not be found.';
       } else if (error.message.includes('network')) {

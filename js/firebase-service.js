@@ -109,6 +109,7 @@ class FirebaseService {
     try {
       const collectionsToPull = [
         'settings',
+        'system_settings',
         'admins',
         'students',
         'fees',
@@ -117,7 +118,11 @@ class FirebaseService {
         'announcements',
         'diary',
         'books',
-        'chapters'
+        'chapters',
+        'notifications',
+        'whatsapp_settings',
+        'whatsapp_templates',
+        'whatsapp_logs'
       ];
 
       for (const col of collectionsToPull) {
@@ -164,6 +169,7 @@ class FirebaseService {
       // 2. Gather all collections from current local store
       const collectionsToSync = [
         'settings',
+        'system_settings',
         'admins',
         'students',
         'fees',
@@ -173,7 +179,11 @@ class FirebaseService {
         'diary',
         'books',
         'chapters',
-        'audit_logs'
+        'audit_logs',
+        'notifications',
+        'whatsapp_settings',
+        'whatsapp_templates',
+        'whatsapp_logs'
       ];
 
       let totalSynced = 0;
@@ -249,6 +259,10 @@ class FirebaseService {
    * Helper to display user-friendly sync alerts when Firestore rejects saves
    */
   handleSyncError(operation, collectionName, error) {
+    // Security & UI Guard: Students must never see cloud sync error toasts or messages
+    if (window.AuthService && typeof window.AuthService.isStudent === 'function' && window.AuthService.isStudent()) {
+      return;
+    }
     if (window.UIUtils && typeof window.UIUtils.showToast === 'function') {
       if (error.code === 'permission-denied' || (error.message && error.message.toLowerCase().includes('permission'))) {
         window.UIUtils.showToast('error', 'Cloud Sync Failed (Permission Denied)', 'Firebase Firestore rejected the save. Update Firestore Rules in Firebase Console so all devices can sync.');
@@ -397,7 +411,10 @@ class FirebaseService {
           callback(docs);
         }, (err) => {
           console.warn(`Firestore onSnapshot fallback for ${collectionName}:`, err.message);
-          this.setStatus('error', err.message);
+          // Do not falsely degrade healthy connection to 'error' on single listener fallback
+          if (this.cloudStatus !== 'online') {
+            this.setStatus('offline', err.message);
+          }
         });
       } catch (err) {
         console.warn(`Could not attach Firestore onSnapshot to ${collectionName}:`, err);
@@ -647,93 +664,213 @@ class FirebaseService {
   }
 
   /**
-   * Mark a Fee as Paid and generate 10-digit receipt
+   * Process Fee Payment for Single or Multiple Months (Atomic Batch Write)
+   * Generates a single official 10-digit receipt, updates all selected fee records,
+   * supports Admin-controlled Late Fee Fine (applied or waived), and records audit log.
    */
-  async processFeePayment(feeId, paymentData) {
-    const fee = await this.getDocument('fees', feeId);
-    if (!fee) throw new Error('Fee record not found');
+  async processMultiMonthFeePayment(feeIds, paymentData) {
+    if (!Array.isArray(feeIds) || feeIds.length === 0) {
+      throw new Error('Please select at least one fee month for payment.');
+    }
 
+    const allFees = await this.getCollection('fees');
+    const targetFees = feeIds.map(id => allFees.find(f => f.id === id)).filter(Boolean);
+
+    if (targetFees.length === 0) {
+      throw new Error('Selected fee records not found.');
+    }
+
+    // Sort chronologically by monthOrder
+    targetFees.sort((a, b) => (Number(a.monthOrder) || 0) - (Number(b.monthOrder) || 0));
+
+    const primaryFee = targetFees[0];
     const existingReceipts = await this.getCollection('receipts');
     const receiptNumber = window.UIUtils.generate10DigitReceiptNumber(existingReceipts);
 
     const paidDate = paymentData.paymentDate || new Date().toISOString().split('T')[0];
-    const paidAmount = Number(paymentData.paidAmount) || fee.expectedAmount;
+    const baseTuitionAmount = targetFees.reduce((sum, f) => sum + (Number(f.expectedAmount) || 3000), 0);
 
-    // Update fee record
-    const updatedFee = await this.updateDocument('fees', feeId, {
-      status: 'Paid',
-      paidAmount: paidAmount,
-      paymentDate: paidDate,
-      receiptNumber: receiptNumber,
-      notes: paymentData.notes || 'Tuition Fee Paid'
-    });
+    // Admin-controlled Late Fee Fine calculation
+    const applyLateFee = Boolean(paymentData.applyLateFee);
+    const lateFeeAmount = applyLateFee ? Math.max(0, Number(paymentData.lateFeeAmount) || 0) : 0;
+    const lateFeeWaived = !applyLateFee || lateFeeAmount === 0;
+    const lateFeeReason = paymentData.lateFeeReason || (lateFeeWaived ? 'Waived by Administration' : 'Overdue Payment Fine');
 
-    // Create official receipt record
+    const totalPaidAmount = baseTuitionAmount + lateFeeAmount;
+    const monthsList = targetFees.map(f => f.month);
+    const monthsSummary = monthsList.join(', ');
+
+    // Atomic batch write (Firestore batch when live, or synchronized local store)
+    const batch = (this.isLive && this.db) ? this.db.batch() : null;
+
+    for (const fee of targetFees) {
+      const feeUpdateData = {
+        status: 'Paid',
+        paidAmount: Number(fee.expectedAmount) || 3000,
+        paymentDate: paidDate,
+        receiptNumber: receiptNumber,
+        notes: paymentData.notes || `Tuition fee paid (${targetFees.length > 1 ? 'Multi-month: ' + monthsSummary : fee.month})`,
+        lateFeeApplied: !lateFeeWaived,
+        updatedAt: new Date().toISOString()
+      };
+
+      if (batch) {
+        const feeRef = this.db.collection('fees').doc(fee.id);
+        batch.update(feeRef, feeUpdateData);
+      }
+      if (this.mockData['fees'] && this.mockData['fees'][fee.id]) {
+        Object.assign(this.mockData['fees'][fee.id], feeUpdateData);
+      }
+    }
+
+    // Build consolidated receipt record
     const receiptRecord = {
       id: `rcpt_${receiptNumber}`,
       receiptNumber: receiptNumber,
-      feeId: feeId,
-      studentId: fee.studentId,
-      studentName: fee.studentName,
-      fatherName: fee.fatherName,
-      rollNumber: fee.rollNumber,
-      contactNumber: fee.contactNumber,
-      class: fee.class,
-      group: fee.group,
-      month: fee.month,
-      academicYear: fee.academicYear,
-      expectedAmount: fee.expectedAmount,
-      paidAmount: paidAmount,
+      feeId: targetFees.length === 1 ? primaryFee.id : null,
+      feeIds: targetFees.map(f => f.id),
+      isMultiMonth: targetFees.length > 1,
+      monthsCount: targetFees.length,
+      months: monthsList,
+      month: monthsSummary,
+      studentId: primaryFee.studentId,
+      studentName: primaryFee.studentName,
+      fatherName: primaryFee.fatherName,
+      rollNumber: primaryFee.rollNumber,
+      contactNumber: primaryFee.contactNumber,
+      class: primaryFee.class,
+      group: primaryFee.group,
+      academicYear: primaryFee.academicYear,
+      baseTuitionAmount: baseTuitionAmount,
+      lateFeeAmount: lateFeeAmount,
+      lateFeeWaived: lateFeeWaived,
+      lateFeeReason: lateFeeReason,
+      expectedAmount: baseTuitionAmount,
+      paidAmount: totalPaidAmount,
       paymentDate: paidDate,
       receiptDate: new Date().toISOString(),
-      notes: paymentData.notes || 'Tuition Fee Paid',
-      availableToStudent: false, // Turned on when Admin clicks "Send Receipt to Student Account"
+      paymentMode: paymentData.paymentMode || 'Cash Counter',
+      notes: paymentData.notes || `Tuition Fee Paid (${monthsSummary})`,
+      availableToStudent: false, // Office sends to student when ready
       createdAt: new Date().toISOString()
     };
-    await this.addDocument('receipts', receiptRecord);
+
+    if (batch) {
+      const rcptRef = this.db.collection('receipts').doc(receiptRecord.id);
+      batch.set(rcptRef, receiptRecord);
+      await batch.commit();
+    } else {
+      if (!this.mockData['receipts']) this.mockData['receipts'] = {};
+      this.mockData['receipts'][receiptRecord.id] = receiptRecord;
+    }
 
     // Audit log
+    const auditDetail = targetFees.length > 1
+      ? `Processed Multi-Month Payment (${targetFees.length} months: ${monthsSummary}) totaling Rs. ${totalPaidAmount} (Base Tuition: Rs. ${baseTuitionAmount}${lateFeeAmount > 0 ? `, Late Fine: Rs. ${lateFeeAmount}` : ', Late Fine Waived'}) with Receipt #${receiptNumber} for ${primaryFee.studentName} (Roll #${primaryFee.rollNumber})`
+      : `Marked ${primaryFee.month} fee as Paid (Rs. ${totalPaidAmount}${lateFeeAmount > 0 ? ` incl. Late Fine Rs. ${lateFeeAmount}` : ''}) with Receipt #${receiptNumber} for ${primaryFee.studentName} (Roll #${primaryFee.rollNumber})`;
+
     await window.AuditService.log({
       action: 'Fee Payment Processed',
       category: 'Finance',
       targetType: 'Fee',
-      targetId: feeId,
-      details: `Marked ${fee.month} fee as Paid (Rs. ${paidAmount}) with Receipt #${receiptNumber} for ${fee.studentName} (Roll #${fee.rollNumber})`
+      targetId: receiptRecord.id,
+      details: auditDetail
     });
 
-    return { fee: updatedFee, receipt: receiptRecord };
+    // Asynchronous non-blocking WhatsApp Payment Received Notification hook
+    if (window.WhatsAppService && typeof window.WhatsAppService.notifyFeePayment === 'function') {
+      try {
+        window.WhatsAppService.notifyFeePayment(receiptRecord).catch(err => {
+          console.warn('⚠️ WhatsApp fee payment notification note:', err);
+        });
+      } catch (waErr) {
+        console.warn('⚠️ WhatsApp fee hook note:', waErr);
+      }
+    }
+
+    return { receipt: receiptRecord, fees: targetFees };
+  }
+
+  /**
+   * Mark a Fee as Paid and generate 10-digit receipt (Delegates to processMultiMonthFeePayment)
+   */
+  async processFeePayment(feeId, paymentData) {
+    const result = await this.processMultiMonthFeePayment([feeId], paymentData);
+    return { fee: result.fees[0], receipt: result.receipt };
   }
 
   /**
    * Send Receipt to Student Account & trigger real-time notification
+   * Handles both single-month and consolidated multi-month receipts
    */
-  async sendReceiptToStudent(feeId) {
-    const fee = await this.getDocument('fees', feeId);
-    if (!fee) throw new Error('Fee record not found');
+  async sendReceiptToStudent(feeId, receiptNum = null) {
+    const receipts = await this.getCollection('receipts');
+    const allFees = await this.getCollection('fees');
 
-    // Update fee availability
-    await this.updateDocument('fees', feeId, {
-      receiptAvailableToStudent: true
-    });
+    let matchedReceipt = null;
+    if (receiptNum) {
+      matchedReceipt = receipts.find(r => r.receiptNumber === String(receiptNum));
+    }
+
+    let fee = null;
+    if (feeId) {
+      fee = allFees.find(f => f.id === feeId);
+    }
+
+    if (!matchedReceipt && fee) {
+      matchedReceipt = receipts.find(r => 
+        r.receiptNumber === fee.receiptNumber || 
+        r.feeId === feeId || 
+        (Array.isArray(r.feeIds) && r.feeIds.includes(feeId))
+      );
+    }
+
+    if (!fee && matchedReceipt) {
+      fee = allFees.find(f => 
+        f.receiptNumber === matchedReceipt.receiptNumber || 
+        (Array.isArray(matchedReceipt.feeIds) && matchedReceipt.feeIds.includes(f.id))
+      );
+    }
+
+    if (!matchedReceipt && !fee) throw new Error('Receipt or Fee record not found');
+
+    const targetReceiptNum = matchedReceipt ? matchedReceipt.receiptNumber : fee.receiptNumber;
+
+    // Find ALL related fees for this receipt (single or multi-month)
+    const relatedFees = allFees.filter(f => 
+      f.receiptNumber === targetReceiptNum || 
+      (matchedReceipt && Array.isArray(matchedReceipt.feeIds) && matchedReceipt.feeIds.includes(f.id)) ||
+      (fee && f.id === fee.id)
+    );
+
+    // Update all fee records to make receipt available to student
+    for (const f of relatedFees) {
+      await this.updateDocument('fees', f.id, {
+        receiptAvailableToStudent: true
+      });
+    }
 
     // Update receipt record
-    const receipts = await this.getCollection('receipts');
-    const matchedReceipt = receipts.find(r => r.receiptNumber === fee.receiptNumber || r.feeId === feeId);
     if (matchedReceipt) {
       await this.updateDocument('receipts', matchedReceipt.id, {
         availableToStudent: true
       });
     }
 
-    // Create notification for the student
+    const studentId = matchedReceipt ? matchedReceipt.studentId : fee.studentId;
+    const rollNumber = matchedReceipt ? matchedReceipt.rollNumber : fee.rollNumber;
+    const studentName = matchedReceipt ? matchedReceipt.studentName : fee.studentName;
+    const monthLabel = matchedReceipt ? matchedReceipt.month : fee.month;
+
+    // Create notification for student
     const notification = {
       id: `notif_${Date.now()}`,
-      studentId: fee.studentId,
-      rollNumber: fee.rollNumber,
+      studentId: studentId,
+      rollNumber: rollNumber,
       title: 'Fee Paid & Receipt Available',
-      message: `Your ${fee.month} fee has been paid successfully. Receipt #${fee.receiptNumber} is now available in Fee Details.`,
+      message: `Your fee payment receipt #${targetReceiptNum} for ${monthLabel} is now officially available in your Student Portal.`,
       type: 'fee_receipt',
-      receiptNumber: fee.receiptNumber,
+      receiptNumber: targetReceiptNum,
       isRead: false,
       createdAt: new Date().toISOString()
     };
@@ -744,19 +881,24 @@ class FirebaseService {
       action: 'Receipt Sent to Student',
       category: 'Finance',
       targetType: 'Student',
-      targetId: fee.studentId,
-      details: `Receipt #${fee.receiptNumber} for ${fee.month} sent to student ${fee.studentName}`
+      targetId: studentId,
+      details: `Official Receipt #${targetReceiptNum} (${monthLabel}) sent to student ${studentName} (Roll #${rollNumber})`
     });
 
     return true;
   }
 
   /**
-   * System Settings
+   * System Settings with Late Fee Fine Configuration
    */
   async getSystemSettings() {
     const settings = await this.getDocument('settings', 'global_settings');
-    if (settings) return settings;
+    if (settings) {
+      if (settings.lateFeeEnabled === undefined) settings.lateFeeEnabled = true;
+      if (settings.defaultLateFee === undefined) settings.defaultLateFee = 200;
+      if (settings.feeDueDay === undefined) settings.feeDueDay = 10;
+      return settings;
+    }
 
     const defaultSettings = {
       id: 'global_settings',
@@ -769,7 +911,10 @@ class FirebaseService {
       defaultFee9th: 3000,
       defaultFee10th: 3000,
       defaultFee11th: 3000,
-      defaultFee12th: 3000
+      defaultFee12th: 3000,
+      lateFeeEnabled: true,
+      defaultLateFee: 200,
+      feeDueDay: 10
     };
     await this.addDocument('settings', defaultSettings);
     return defaultSettings;
@@ -807,7 +952,10 @@ class FirebaseService {
       defaultFee9th: 3000,
       defaultFee10th: 3000,
       defaultFee11th: 3000,
-      defaultFee12th: 3000
+      defaultFee12th: 3000,
+      lateFeeEnabled: true,
+      defaultLateFee: 200,
+      feeDueDay: 10
     };
 
     // 2. Super Admin & Admin Users

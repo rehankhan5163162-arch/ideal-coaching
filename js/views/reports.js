@@ -321,8 +321,14 @@ const ReportsView = {
                   <td><strong>${r.studentName}</strong></td>
                   <td>#${r.rollNumber}</td>
                   <td>${r.class} (${r.group})</td>
-                  <td><strong>${r.month}</strong></td>
-                  <td style="color: var(--success-600); font-weight: 700;">${window.UIUtils.formatCurrency(r.paidAmount)}</td>
+                  <td>
+                    <strong>${r.month}</strong>
+                    ${r.isMultiMonth ? `<span class="badge badge-primary" style="font-size: 0.65rem; margin-left: 0.35rem;">Multi-Month (${r.monthsCount || (r.months ? r.months.length : '')})</span>` : ''}
+                  </td>
+                  <td>
+                    <span style="color: var(--success-600); font-weight: 700;">${window.UIUtils.formatCurrency(r.paidAmount)}</span>
+                    ${r.lateFeeAmount > 0 && !r.lateFeeWaived ? `<br><small style="font-size: 0.7rem; color: #b45309; font-weight: 600;">(incl. Late Fine: ${window.UIUtils.formatCurrency(r.lateFeeAmount)})</small>` : ''}
+                  </td>
                   <td>${window.UIUtils.formatDate(r.paymentDate)}</td>
                   <td>
                     <span class="badge ${r.availableToStudent ? 'badge-paid' : 'badge-notstarted'}">

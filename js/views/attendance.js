@@ -258,6 +258,8 @@ const AttendanceView = {
 
         await window.GlobalLoader.wrap(async () => {
           const user = window.AuthService.getCurrentUser() || { fullName: 'Admin' };
+          const absentStudents = [];
+
           for (const row of rows) {
             const studentId = row.getAttribute('data-student-id');
             const roll = row.getAttribute('data-roll');
@@ -278,6 +280,10 @@ const AttendanceView = {
               markedBy: user.fullName || 'Admin',
               createdAt: new Date().toISOString()
             });
+
+            if (status === 'Absent') {
+              absentStudents.push({ studentId, roll, name, status });
+            }
           }
 
           await window.AuditService.log({
@@ -287,6 +293,27 @@ const AttendanceView = {
             targetId: `${this.selectedClass}-${this.selectedGroup}-${this.selectedDate}`,
             details: `Saved attendance for ${this.selectedClass} (${this.selectedGroup}) on ${this.selectedDate} (${rows.length} students)`
           });
+
+          // Non-blocking asynchronous WhatsApp Attendance triggers (Absent students)
+          if (window.WhatsAppService && absentStudents.length > 0) {
+            (async () => {
+              try {
+                const students = await window.FirebaseService.getCollection('students');
+                for (const item of absentStudents) {
+                  const student = students.find(s => s.id === item.studentId);
+                  if (student) {
+                    await window.WhatsAppService.notifyAttendance({
+                      student: student,
+                      status: item.status,
+                      date: this.selectedDate
+                    });
+                  }
+                }
+              } catch (waErr) {
+                console.warn('⚠️ WhatsApp attendance notification note:', waErr);
+              }
+            })();
+          }
         }, 'Saving attendance records to Firebase...', 'Ideal Coaching Center');
 
         window.UIUtils.showToast('success', 'Attendance Saved', `Attendance for ${this.selectedDate} has been successfully recorded.`);

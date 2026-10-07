@@ -636,6 +636,40 @@ const SuperAdminView = {
               <label class="form-label">Class 12th Default Fee (PKR)</label>
               <input type="number" id="set-fee-12" class="form-control" value="${settings.defaultFee12th || 3000}" />
             </div>
+
+            <div class="form-col-full" style="margin-top: 1.25rem; padding-top: 1.25rem; border-top: 1px solid var(--border-color);">
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 0.5rem;">
+                <div>
+                  <h3 style="font-size: 1.1rem; font-weight: 700;">Late Fee Fine & Penalty Configuration</h3>
+                  <p style="font-size: 0.8rem; color: var(--slate-500);">Configure standard late fee defaults. Full discretion remains with Admin during payment collection to apply, edit, or waive.</p>
+                </div>
+                <span class="badge badge-paid" style="font-size: 0.775rem;">Admin-Controlled System</span>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Default Late Fee Fine (PKR)</label>
+              <input type="number" id="set-late-fee-amount" class="form-control" value="${settings.defaultLateFee !== undefined ? settings.defaultLateFee : 200}" min="0" step="50" />
+              <span class="form-help">Standard fine suggested on overdue months (Admin can adjust or waive).</span>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Monthly Fee Due Day</label>
+              <input type="number" id="set-fee-due-day" class="form-control" value="${settings.feeDueDay || 10}" min="1" max="28" />
+              <span class="form-help">Due on this day of each month (e.g. 10th of every month).</span>
+            </div>
+
+            <div class="form-group form-col-full">
+              <label class="checkbox-label" style="display: flex; align-items: flex-start; gap: 0.75rem; font-size: 0.9rem; cursor: pointer; padding: 0.85rem 1rem; background: var(--slate-50); border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+                <input type="checkbox" id="set-late-fee-enabled" ${settings.lateFeeEnabled !== false ? 'checked' : ''} style="width: 20px; height: 20px; accent-color: var(--primary-600); margin-top: 0.15rem;" />
+                <div>
+                  <strong>Enable Late Fee Fine System in Cashier Counter</strong>
+                  <div style="font-size: 0.8rem; color: var(--slate-500); margin-top: 0.2rem;">
+                    When enabled, the fee collection window automatically calculates and presents the late fee option for overdue months. Admin retains one-click authority to apply or waive the fine on every individual payment.
+                  </div>
+                </div>
+              </label>
+            </div>
           </form>
         </div>
       </div>
@@ -650,6 +684,9 @@ const SuperAdminView = {
       const f10 = Number(container.querySelector('#set-fee-10').value) || 3000;
       const f11 = Number(container.querySelector('#set-fee-11').value) || 3000;
       const f12 = Number(container.querySelector('#set-fee-12').value) || 3000;
+      const defaultLateFee = Number(container.querySelector('#set-late-fee-amount').value) || 0;
+      const feeDueDay = Number(container.querySelector('#set-fee-due-day').value) || 10;
+      const lateFeeEnabled = container.querySelector('#set-late-fee-enabled').checked;
 
       await window.GlobalLoader.wrap(async () => {
         await window.FirebaseService.updateDocument('settings', 'global_settings', {
@@ -660,7 +697,10 @@ const SuperAdminView = {
           defaultFee9th: f9,
           defaultFee10th: f10,
           defaultFee11th: f11,
-          defaultFee12th: f12
+          defaultFee12th: f12,
+          defaultLateFee: defaultLateFee,
+          feeDueDay: feeDueDay,
+          lateFeeEnabled: lateFeeEnabled
         });
 
         await window.AuditService.log({
@@ -668,11 +708,11 @@ const SuperAdminView = {
           category: 'System',
           targetType: 'Settings',
           targetId: 'global_settings',
-          details: `Updated active academic year to ${year} and adjusted class fee defaults`
+          details: `Updated active academic year to ${year}, fee defaults, and late fee fine policy (PKR ${defaultLateFee}, Due Day: ${feeDueDay}th, Enabled: ${lateFeeEnabled})`
         });
       }, 'Writing configuration updates to Firebase...', 'Ideal Coaching Center');
 
-      window.UIUtils.showToast('success', 'Settings Saved', 'System settings updated successfully.');
+      window.UIUtils.showToast('success', 'Settings Saved', 'System settings and late fee policy updated successfully.');
     };
   },
 

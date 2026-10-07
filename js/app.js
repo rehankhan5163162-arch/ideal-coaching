@@ -28,12 +28,12 @@ class AppRouter {
 
     this.bindGlobalEvents();
 
-    // Initial check of authentication & hash route with strict 5-second minimum loader
+    // Initial check of authentication & hash route with fast 1.5s - 2.0s loader
     await window.GlobalLoader.wrap(async () => {
       await window.FirebaseService.init();
       const hash = window.location.hash.replace('#', '') || 'dashboard';
       await this.navigate(hash, false);
-    }, 'Connecting to Ideal Coaching Center database...', 'Ideal Coaching Center');
+    }, 'Connecting to Ideal Coaching Center database...', 'Ideal Coaching Center', 1600);
   }
 
   bindGlobalEvents() {
@@ -109,11 +109,22 @@ class AppRouter {
     }
 
     // 3. Security Route Protection
-    if (currentUser.role === 'student') {
-      const adminOnlyRoutes = ['super-admin-dashboard', 'admin-dashboard', 'admin-management', 'add-student', 'students', 'reports', 'system-settings', 'audit-logs'];
+    if (currentUser.role === 'student' || route.startsWith('student-')) {
+      const adminOnlyRoutes = ['super-admin-dashboard', 'admin-dashboard', 'admin-management', 'add-student', 'students', 'reports', 'system-settings', 'audit-logs', 'whatsapp-settings'];
       if (adminOnlyRoutes.includes(route)) {
         window.UIUtils.showToast('error', 'Access Denied', 'Students are restricted to their student portal.');
         route = 'student-dashboard';
+      }
+      document.body.classList.add('role-student');
+      document.body.classList.remove('role-admin');
+      const cBtn = document.getElementById('btn-cloud-sync');
+      if (cBtn) {
+        cBtn.style.setProperty('display', 'none', 'important');
+        cBtn.setAttribute('aria-hidden', 'true');
+      }
+      const cBanner = document.getElementById('cloud-warning-banner');
+      if (cBanner) {
+        cBanner.style.setProperty('display', 'none', 'important');
       }
     } else if (currentUser.role === 'admin') {
       const superAdminOnlyRoutes = ['admin-management', 'system-settings', 'audit-logs'];
@@ -143,6 +154,15 @@ class AppRouter {
           break;
         case 'audit-logs':
           await window.SuperAdminView.renderAuditLogs(container);
+          break;
+
+        // WhatsApp Communication & Settings (Super Admin & Admin)
+        case 'whatsapp-settings':
+          if (window.WhatsAppView && typeof window.WhatsAppView.render === 'function') {
+            await window.WhatsAppView.render(container);
+          } else {
+            window.UIUtils.showToast('error', 'Module Not Loaded', 'WhatsApp module is currently initializing.');
+          }
           break;
 
         // Admin
@@ -252,6 +272,36 @@ class AppRouter {
         this._notifUnsub = window.FirebaseService.subscribe('notifications', updateNotifDot);
       }
     }
+
+    // Role Guard: Cloud Sync button & warning banner are strictly for Admin / Super Admin only!
+    // Students must NEVER see Cloud Sync in any form in their portal or dashboard.
+    const cloudBtn = document.getElementById('btn-cloud-sync');
+    const cloudBanner = document.getElementById('cloud-warning-banner');
+    const isAdmin = user && (user.role === 'admin' || user.role === 'super_admin');
+
+    if (cloudBtn) {
+      if (isAdmin) {
+        cloudBtn.style.setProperty('display', 'inline-flex', 'important');
+        cloudBtn.removeAttribute('aria-hidden');
+      } else {
+        cloudBtn.style.setProperty('display', 'none', 'important');
+        cloudBtn.setAttribute('aria-hidden', 'true');
+      }
+    }
+
+    if (cloudBanner) {
+      if (!isAdmin) {
+        cloudBanner.style.setProperty('display', 'none', 'important');
+      }
+    }
+
+    if (user && user.role === 'student') {
+      document.body.classList.add('role-student');
+      document.body.classList.remove('role-admin');
+    } else {
+      document.body.classList.remove('role-student');
+      document.body.classList.add('role-admin');
+    }
   }
 
   /**
@@ -301,6 +351,10 @@ class AppRouter {
           Reports
         </a>
         <span class="nav-section-title">Administration</span>
+        <a class="nav-item" href="#whatsapp-settings" data-route="whatsapp-settings">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
+          WhatsApp Communication
+        </a>
         <a class="nav-item" href="#system-settings" data-route="system-settings">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
           System Settings
@@ -356,6 +410,10 @@ class AppRouter {
         <a class="nav-item" href="#reports" data-route="reports">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
           Reports
+        </a>
+        <a class="nav-item" href="#whatsapp-settings" data-route="whatsapp-settings">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
+          WhatsApp Messages
         </a>
         <span class="nav-section-title">Personal</span>
         <a class="nav-item" href="#account-settings" data-route="account-settings">
@@ -447,6 +505,7 @@ class AppRouter {
       'syllabus': 'Syllabus & Curriculum',
       'reports': 'Analytics & Reports',
       'system-settings': 'System Settings',
+      'whatsapp-settings': 'WhatsApp Communication & Settings',
       'audit-logs': 'Audit Trails & Security Logs',
       'account-settings': 'Account Settings',
       'student-profile': 'My Student Profile',
@@ -586,22 +645,11 @@ class AppRouter {
           </form>
         </div>
 
-        <div style="padding: 0.75rem 1.75rem; border-top: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; font-size: 0.75rem; color: var(--slate-500); background: var(--slate-50); border-bottom-left-radius: var(--radius-lg); border-bottom-right-radius: var(--radius-lg);">
-          <span>Multi-Device Sync:</span>
-          <button type="button" class="header-cloud-btn status-connecting" id="btn-login-cloud-status" style="padding: 0.2rem 0.6rem; font-size: 0.7rem;">
-            <span class="cloud-status-dot"></span>
-            <span class="cloud-status-text">Cloud Sync</span>
-          </button>
+        <div style="padding: 0.85rem 1.75rem; border-top: 1px solid var(--border-color); display: flex; align-items: center; justify-content: center; font-size: 0.75rem; color: var(--slate-500); background: var(--slate-50); border-bottom-left-radius: var(--radius-lg); border-bottom-right-radius: var(--radius-lg);">
+          <span>Ideal Coaching Center • Official Student & Administration Portal</span>
         </div>
       </div>
     `;
-
-    // Bind login cloud status button
-    const loginCloudBtn = loginContainer.querySelector('#btn-login-cloud-status');
-    if (loginCloudBtn && window.CloudSyncManager) {
-      loginCloudBtn.onclick = () => window.CloudSyncManager.openAssistantModal();
-      window.CloudSyncManager.updateStatusBadge(window.FirebaseService.cloudStatus);
-    }
 
     const loginForm = loginContainer.querySelector('#portal-login-form');
     loginForm.onsubmit = async (e) => {

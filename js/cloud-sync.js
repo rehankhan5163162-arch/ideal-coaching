@@ -42,13 +42,35 @@ class CloudSyncManager {
   }
 
   /**
-   * Update all cloud status buttons across portal and login page
+   * Helper: Check if active user is an Admin or Super Admin
+   */
+  isAdminUser() {
+    if (typeof document !== 'undefined' && document.body && document.body.classList.contains('role-student')) return false;
+    if (typeof window !== 'undefined' && window.location && window.location.hash.startsWith('#student-')) return false;
+    if (!window.AuthService) return false;
+    if (typeof window.AuthService.isStudent === 'function' && window.AuthService.isStudent()) return false;
+    const user = window.AuthService.getCurrentUser();
+    return !!(user && (user.role === 'admin' || user.role === 'super_admin'));
+  }
+
+  /**
+   * Update all cloud status buttons across portal (Admin dashboard only)
    */
   updateStatusBadge(status, error) {
+    const isAdmin = this.isAdminUser();
     const btns = document.querySelectorAll('.header-cloud-btn');
     if (!btns || btns.length === 0) return;
 
     btns.forEach(btn => {
+      // If user is a student or not an authenticated admin, strictly hide button
+      if (!isAdmin) {
+        btn.style.setProperty('display', 'none', 'important');
+        btn.setAttribute('aria-hidden', 'true');
+        return;
+      }
+
+      btn.style.setProperty('display', 'inline-flex', 'important');
+      btn.removeAttribute('aria-hidden');
       btn.className = `header-cloud-btn status-${status}`;
 
       const textEl = btn.querySelector('.cloud-status-text');
@@ -71,23 +93,33 @@ class CloudSyncManager {
   }
 
   /**
-   * Show/hide persistent warning alert banner
+   * Show/hide persistent warning alert banner (Admin dashboard only)
    */
   updateWarningBanner(status, error) {
     const banner = document.getElementById('cloud-warning-banner');
     if (!banner) return;
 
+    const isAdmin = this.isAdminUser();
+    if (!isAdmin) {
+      banner.style.setProperty('display', 'none', 'important');
+      return;
+    }
+
     if (status === 'error') {
-      banner.style.display = 'flex';
+      banner.style.setProperty('display', 'flex', 'important');
     } else if (status === 'online') {
-      banner.style.display = 'none';
+      banner.style.setProperty('display', 'none', 'important');
     }
   }
 
   /**
-   * Open the Cloud Synchronization & Rules Assistant Modal
+   * Open the Cloud Synchronization & Rules Assistant Modal (Admin only)
    */
   openAssistantModal() {
+    if (!this.isAdminUser()) {
+      return; // Security Guard: Students cannot open the cloud sync assistant
+    }
+
     let modal = document.getElementById('modal-cloud-sync-assistant');
     if (!modal) {
       modal = document.createElement('div');
@@ -162,6 +194,7 @@ service cloud.firestore {
   match /databases/{database}/documents {
     function isValidSize() { return request.resource.data.keys().size() &lt; 30; }
     match /settings/{doc} { allow read: if true; allow write, delete: if true; }
+    match /system_settings/{doc} { allow read: if true; allow write, delete: if true; }
     match /students/{studentId} {
       allow read: if true;
       allow create, update: if isValidSize() &amp;&amp; request.resource.data.fullName is string &amp;&amp; request.resource.data.rollNumber is string;
@@ -180,6 +213,10 @@ service cloud.firestore {
     match /chapters/{id} { allow read: if true; allow write, delete: if isValidSize(); }
     match /audit_logs/{id} { allow read, create: if isValidSize(); }
     match /admins/{id} { allow read: if true; allow write, delete: if isValidSize(); }
+    match /notifications/{id} { allow read: if true; allow create, update, delete: if isValidSize(); }
+    match /whatsapp_settings/{doc} { allow read, write, delete: if true; }
+    match /whatsapp_templates/{id} { allow read: if true; allow write, delete: if isValidSize(); }
+    match /whatsapp_logs/{id} { allow read, create: if isValidSize(); allow update, delete: if isValidSize(); }
   }
 }</code></pre>
               </div>
