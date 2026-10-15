@@ -84,6 +84,11 @@ class AppRouter {
       window.StudentPortalView.cleanupSubscriptions();
     }
 
+    // Stop active camera hardware stream if leaving QR attendance terminal
+    if (routeKey !== 'qr-attendance' && window.QRAttendanceView && typeof window.QRAttendanceView.stopCamera === 'function') {
+      window.QRAttendanceView.stopCamera();
+    }
+
     // 1. Check Authentication
     if (!window.AuthService.isAuthenticated()) {
       this.renderLoginPage();
@@ -105,18 +110,44 @@ class AppRouter {
     if (route === 'dashboard') {
       if (currentUser.role === 'super_admin') route = 'super-admin-dashboard';
       else if (currentUser.role === 'admin') route = 'admin-dashboard';
+      else if (currentUser.role === 'teacher') route = 'teacher-dashboard';
       else if (currentUser.role === 'student') route = 'student-dashboard';
     }
 
     // 3. Security Route Protection
-    if (currentUser.role === 'student' || route.startsWith('student-')) {
-      const adminOnlyRoutes = ['super-admin-dashboard', 'admin-dashboard', 'admin-management', 'add-student', 'students', 'reports', 'system-settings', 'audit-logs', 'whatsapp-settings'];
-      if (adminOnlyRoutes.includes(route)) {
+    if (currentUser.role === 'teacher') {
+      const teacherAllowedRoutes = [
+        'teacher-dashboard', 'teacher-timetable', 'teacher-classes',
+        'teacher-attendance', 'teacher-salary', 'teacher-badge',
+        'teacher-profile', 'notifications-center', 'account-settings'
+      ];
+      if (!teacherAllowedRoutes.includes(route)) {
+        window.UIUtils.showToast('error', 'Access Denied', 'Teacher portal is restricted to teacher academic tools.');
+        route = 'teacher-dashboard';
+      }
+      document.body.classList.add('role-teacher');
+      document.body.classList.remove('role-admin', 'role-student');
+      const cBtn = document.getElementById('btn-cloud-sync');
+      if (cBtn) {
+        cBtn.style.setProperty('display', 'none', 'important');
+        cBtn.setAttribute('aria-hidden', 'true');
+      }
+      const cBanner = document.getElementById('cloud-warning-banner');
+      if (cBanner) {
+        cBanner.style.setProperty('display', 'none', 'important');
+      }
+    } else if (currentUser.role === 'student' || route.startsWith('student-')) {
+      const studentAllowedRoutes = [
+        'student-dashboard', 'student-profile', 'student-fees', 'student-exam-fees',
+        'student-attendance', 'student-attendance-card', 'student-announcements',
+        'student-diary', 'student-syllabus', 'student-notifications', 'account-settings'
+      ];
+      if (!studentAllowedRoutes.includes(route)) {
         window.UIUtils.showToast('error', 'Access Denied', 'Students are restricted to their student portal.');
         route = 'student-dashboard';
       }
       document.body.classList.add('role-student');
-      document.body.classList.remove('role-admin');
+      document.body.classList.remove('role-admin', 'role-teacher');
       const cBtn = document.getElementById('btn-cloud-sync');
       if (cBtn) {
         cBtn.style.setProperty('display', 'none', 'important');
@@ -127,11 +158,16 @@ class AppRouter {
         cBanner.style.setProperty('display', 'none', 'important');
       }
     } else if (currentUser.role === 'admin') {
-      const superAdminOnlyRoutes = ['admin-management', 'system-settings', 'audit-logs'];
+      const superAdminOnlyRoutes = ['admin-management', 'system-settings', 'audit-logs', 'promotions', 'approvals', 'receipt-customizer'];
       if (superAdminOnlyRoutes.includes(route)) {
         window.UIUtils.showToast('error', 'Restricted Function', 'This section requires Super Admin authorization.');
         route = 'admin-dashboard';
       }
+      document.body.classList.add('role-admin');
+      document.body.classList.remove('role-student', 'role-teacher');
+    } else {
+      document.body.classList.add('role-admin');
+      document.body.classList.remove('role-student', 'role-teacher');
     }
 
     this.updateBreadcrumbs(route);
@@ -156,15 +192,6 @@ class AppRouter {
           await window.SuperAdminView.renderAuditLogs(container);
           break;
 
-        // WhatsApp Communication & Settings (Super Admin & Admin)
-        case 'whatsapp-settings':
-          if (window.WhatsAppView && typeof window.WhatsAppView.render === 'function') {
-            await window.WhatsAppView.render(container);
-          } else {
-            window.UIUtils.showToast('error', 'Module Not Loaded', 'WhatsApp module is currently initializing.');
-          }
-          break;
-
         // Admin
         case 'admin-dashboard':
           await window.AdminView.renderDashboard(container);
@@ -176,12 +203,27 @@ class AppRouter {
           await window.AdminView.renderAllStudents(container);
           break;
 
-        // Shared Admin / Super Admin modules
+        // Core Academic & Operational Modules
         case 'fees':
           await window.FeesView.render(container);
           break;
+        case 'examination-fees':
+          await window.ExaminationFeesView.render(container);
+          break;
+        case 'teacher-management':
+          await window.TeacherManagementView.render(container);
+          break;
+        case 'timetables':
+          await window.TimetablesView.render(container);
+          break;
         case 'attendance':
           await window.AttendanceView.render(container);
+          break;
+        case 'attendance-cards':
+          await window.AttendanceCardsView.render(container);
+          break;
+        case 'qr-attendance':
+          await window.QRAttendanceView.render(container);
           break;
         case 'announcements':
           await window.AnnouncementsView.render(container);
@@ -196,6 +238,46 @@ class AppRouter {
           await window.ReportsView.render(container);
           break;
 
+        // Institutional Governance & Advanced Administration
+        case 'payroll':
+          await window.PayrollView.render(container);
+          break;
+        case 'promotions':
+          await window.PromotionsView.render(container);
+          break;
+        case 'approvals':
+          await window.ApprovalsView.render(container);
+          break;
+        case 'receipt-customizer':
+          await window.ReceiptCustomizerView.render(container);
+          break;
+        case 'notifications-center':
+          await window.NotificationsCenterView.render(container);
+          break;
+
+        // Teacher Portal
+        case 'teacher-dashboard':
+          await window.TeacherPortalView.renderDashboard(container);
+          break;
+        case 'teacher-timetable':
+          await window.TeacherPortalView.renderTimetable(container);
+          break;
+        case 'teacher-classes':
+          await window.TeacherPortalView.renderClasses(container);
+          break;
+        case 'teacher-attendance':
+          await window.TeacherPortalView.renderAttendance(container);
+          break;
+        case 'teacher-salary':
+          await window.TeacherPortalView.renderSalary(container);
+          break;
+        case 'teacher-badge':
+          await window.TeacherPortalView.renderBadge(container);
+          break;
+        case 'teacher-profile':
+          await window.TeacherPortalView.renderProfile(container);
+          break;
+
         // Student Portal
         case 'student-dashboard':
           await window.StudentPortalView.renderDashboard(container);
@@ -206,8 +288,14 @@ class AppRouter {
         case 'student-fees':
           await window.StudentPortalView.renderFees(container);
           break;
+        case 'student-exam-fees':
+          await window.ExaminationFeesView.renderStudentExamFees(container, currentUser);
+          break;
         case 'student-attendance':
           await window.StudentPortalView.renderAttendance(container);
+          break;
+        case 'student-attendance-card':
+          await window.StudentPortalView.renderAttendanceCard(container);
           break;
         case 'student-announcements':
           await window.StudentPortalView.renderAnnouncements(container);
@@ -230,6 +318,8 @@ class AppRouter {
         default:
           if (currentUser.role === 'student') {
             await window.StudentPortalView.renderDashboard(container);
+          } else if (currentUser.role === 'teacher') {
+            await window.TeacherPortalView.renderDashboard(container);
           } else {
             await window.AdminView.renderDashboard(container);
           }
@@ -320,19 +410,45 @@ class AppRouter {
         </a>
         <a class="nav-item" href="#students" data-route="students">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-          Students
+          Students Directory
+        </a>
+        <a class="nav-item" href="#add-student" data-route="add-student">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+          Enroll Student
+        </a>
+        <a class="nav-item" href="#teacher-management" data-route="teacher-management">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+          Teachers Directory
+        </a>
+        <a class="nav-item" href="#timetables" data-route="timetables">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+          Master Timetables
         </a>
         <a class="nav-item" href="#admin-management" data-route="admin-management">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><line x1="20" y1="8" x2="20" y2="14"></line><line x1="23" y1="11" x2="17" y2="11"></line></svg>
           Admin Management
         </a>
+
+        <span class="nav-section-title">Academic Operations</span>
         <a class="nav-item" href="#fees" data-route="fees">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg>
           Fee Management
         </a>
+        <a class="nav-item" href="#examination-fees" data-route="examination-fees">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
+          Examination Fees
+        </a>
+        <a class="nav-item" href="#qr-attendance" data-route="qr-attendance">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+          Live QR Scanner
+        </a>
+        <a class="nav-item" href="#attendance-cards" data-route="attendance-cards">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="4" width="18" height="16" rx="2"></rect><line x1="7" y1="8" x2="17" y2="8"></line><line x1="7" y1="12" x2="13" y2="12"></line></svg>
+          Attendance Badges
+        </a>
         <a class="nav-item" href="#attendance" data-route="attendance">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-          Attendance
+          Attendance Sheets
         </a>
         <a class="nav-item" href="#announcements" data-route="announcements">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
@@ -340,24 +456,43 @@ class AppRouter {
         </a>
         <a class="nav-item" href="#diary" data-route="diary">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
-          Diary
+          Daily Diary
         </a>
         <a class="nav-item" href="#syllabus" data-route="syllabus">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
           Syllabus & Books
         </a>
+
+        <span class="nav-section-title">Finance & Governance</span>
+        <a class="nav-item" href="#payroll" data-route="payroll">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+          Faculty Payroll
+        </a>
+        <a class="nav-item" href="#approvals" data-route="approvals">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
+          Approval Workflows
+        </a>
+        <a class="nav-item" href="#promotions" data-route="promotions">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
+          Student Promotions
+        </a>
         <a class="nav-item" href="#reports" data-route="reports">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
-          Reports
+          Reports & Analytics
         </a>
+
         <span class="nav-section-title">Administration</span>
-        <a class="nav-item" href="#whatsapp-settings" data-route="whatsapp-settings">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
-          WhatsApp Communication
+        <a class="nav-item" href="#receipt-customizer" data-route="receipt-customizer">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+          Receipt Customizer
+        </a>
+        <a class="nav-item" href="#notifications-center" data-route="notifications-center">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+          Notifications Center
         </a>
         <a class="nav-item" href="#system-settings" data-route="system-settings">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
-          System Settings
+          System Settings Hub
         </a>
         <a class="nav-item" href="#audit-logs" data-route="audit-logs">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
@@ -381,19 +516,39 @@ class AppRouter {
         </a>
         <a class="nav-item" href="#add-student" data-route="add-student">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-          Add Student
+          Enroll Student
         </a>
         <a class="nav-item" href="#students" data-route="students">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle></svg>
           All Students
         </a>
+        <a class="nav-item" href="#teacher-management" data-route="teacher-management">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+          Teachers Directory
+        </a>
+        <a class="nav-item" href="#timetables" data-route="timetables">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+          Class Timetables
+        </a>
         <a class="nav-item" href="#fees" data-route="fees">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg>
           Fee Management
         </a>
+        <a class="nav-item" href="#examination-fees" data-route="examination-fees">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
+          Examination Fees
+        </a>
+        <a class="nav-item" href="#qr-attendance" data-route="qr-attendance">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+          Live QR Scanner
+        </a>
+        <a class="nav-item" href="#attendance-cards" data-route="attendance-cards">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="4" width="18" height="16" rx="2"></rect><line x1="7" y1="8" x2="17" y2="8"></line><line x1="7" y1="12" x2="13" y2="12"></line></svg>
+          Attendance Badges
+        </a>
         <a class="nav-item" href="#attendance" data-route="attendance">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-          Attendance
+          Attendance Sheets
         </a>
         <a class="nav-item" href="#announcements" data-route="announcements">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
@@ -401,7 +556,7 @@ class AppRouter {
         </a>
         <a class="nav-item" href="#diary" data-route="diary">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
-          Diary
+          Daily Diary
         </a>
         <a class="nav-item" href="#syllabus" data-route="syllabus">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
@@ -409,12 +564,59 @@ class AppRouter {
         </a>
         <a class="nav-item" href="#reports" data-route="reports">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
-          Reports
+          Reports & Analytics
         </a>
-        <a class="nav-item" href="#whatsapp-settings" data-route="whatsapp-settings">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
-          WhatsApp Messages
+
+        <span class="nav-section-title">Personal</span>
+        <a class="nav-item" href="#notifications-center" data-route="notifications-center">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+          Notifications Center
         </a>
+        <a class="nav-item" href="#account-settings" data-route="account-settings">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+          Account Settings
+        </a>
+        <a class="nav-item" href="javascript:void(0)" id="sidebar-logout-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+          Logout
+        </a>
+      `;
+    } else if (role === 'teacher') {
+      nav.innerHTML = `
+        <span class="nav-section-title">Faculty Portal</span>
+        <a class="nav-item" href="#teacher-dashboard" data-route="teacher-dashboard">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+          Dashboard
+        </a>
+        <a class="nav-item" href="#teacher-profile" data-route="teacher-profile">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+          My Profile
+        </a>
+        <a class="nav-item" href="#teacher-timetable" data-route="teacher-timetable">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+          My Timetable
+        </a>
+        <a class="nav-item" href="#teacher-classes" data-route="teacher-classes">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+          My Classes
+        </a>
+        <a class="nav-item" href="#teacher-attendance" data-route="teacher-attendance">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+          My Attendance
+        </a>
+        <a class="nav-item" href="#teacher-salary" data-route="teacher-salary">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+          Salary Statements
+        </a>
+        <a class="nav-item" href="#teacher-badge" data-route="teacher-badge">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="4" width="18" height="16" rx="2"></rect><line x1="7" y1="8" x2="17" y2="8"></line><line x1="7" y1="12" x2="13" y2="12"></line></svg>
+          My QR Gate Pass
+        </a>
+        <a class="nav-item" href="#notifications-center" data-route="notifications-center">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+          Notifications
+        </a>
+
         <span class="nav-section-title">Personal</span>
         <a class="nav-item" href="#account-settings" data-route="account-settings">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
@@ -441,9 +643,17 @@ class AppRouter {
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg>
           Fee Details
         </a>
+        <a class="nav-item" href="#student-exam-fees" data-route="student-exam-fees">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
+          Examination Fees
+        </a>
         <a class="nav-item" href="#student-attendance" data-route="student-attendance">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-          Attendance
+          Attendance Record
+        </a>
+        <a class="nav-item" href="#student-attendance-card" data-route="student-attendance-card">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="4" width="18" height="16" rx="2"></rect><line x1="7" y1="8" x2="17" y2="8"></line><line x1="7" y1="12" x2="13" y2="12"></line></svg>
+          My QR Gate Pass
         </a>
         <a class="nav-item" href="#student-announcements" data-route="student-announcements">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
@@ -460,6 +670,12 @@ class AppRouter {
         <a class="nav-item" href="#student-notifications" data-route="student-notifications">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
           Notifications
+        </a>
+
+        <span class="nav-section-title">Personal</span>
+        <a class="nav-item" href="#account-settings" data-route="account-settings">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+          Account Settings
         </a>
         <a class="nav-item" href="javascript:void(0)" id="sidebar-logout-btn">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
@@ -494,27 +710,45 @@ class AppRouter {
     const titles = {
       'super-admin-dashboard': 'Super Admin Dashboard',
       'admin-dashboard': 'Administrator Dashboard',
+      'teacher-dashboard': 'Faculty Portal Dashboard',
+      'teacher-timetable': 'My Teaching Timetable',
+      'teacher-classes': 'My Assigned Classes & Subjects',
+      'teacher-attendance': 'My Attendance Record',
+      'teacher-salary': 'My Salary Slips & Statements',
+      'teacher-badge': 'My Digital QR Attendance Badge',
+      'teacher-profile': 'My Faculty Profile',
       'student-dashboard': 'Student Portal Dashboard',
+      'student-profile': 'My Student Profile',
+      'student-fees': 'My Fee Schedule & Receipts',
+      'student-exam-fees': 'My Examination Fees & Slips',
+      'student-attendance': 'My Attendance Record',
+      'student-attendance-card': 'My Digital Attendance Gate Pass',
+      'student-announcements': 'Class Announcements & Circulars',
+      'student-diary': "Today's Homework Diary",
+      'student-syllabus': 'My Books & Syllabus Progress',
+      'student-notifications': 'My Notifications',
       'students': 'Students Directory',
       'add-student': 'Enroll New Student',
       'admin-management': 'Admin Management',
+      'teacher-management': 'Teacher Directory & Faculty Management',
+      'timetables': 'Timetable Management & Conflict Resolution',
       'fees': '12-Month Fee Management',
-      'attendance': 'Daily Attendance System',
+      'examination-fees': 'Examination Fee Management',
+      'attendance': 'Daily Attendance Register',
+      'attendance-cards': 'QR Attendance Identity Cards',
+      'qr-attendance': 'Live Camera QR Gate Scanner',
       'announcements': 'Circulars & Announcements',
       'diary': 'Daily Homework Diary',
-      'syllabus': 'Syllabus & Curriculum',
-      'reports': 'Analytics & Reports',
-      'system-settings': 'System Settings',
-      'whatsapp-settings': 'WhatsApp Communication & Settings',
+      'syllabus': 'Syllabus & Curriculum Tracker',
+      'reports': 'Analytics, Financial & Academic Reports',
+      'payroll': 'Faculty Payroll & Salary Disbursement',
+      'promotions': 'Student Academic Progression & Promotion',
+      'approvals': 'Approval Workflows & Audit Center',
+      'receipt-customizer': 'Official Receipt Template Customizer',
+      'notifications-center': 'Unified Notifications Hub',
+      'system-settings': 'System Configuration & Settings Hub',
       'audit-logs': 'Audit Trails & Security Logs',
-      'account-settings': 'Account Settings',
-      'student-profile': 'My Student Profile',
-      'student-fees': 'My Fee Schedule & Receipts',
-      'student-attendance': 'My Attendance Record',
-      'student-announcements': 'Class Announcements',
-      'student-diary': "Today's Homework Diary",
-      'student-syllabus': 'My Books & Syllabus Progress',
-      'student-notifications': 'My Notifications'
+      'account-settings': 'Account Security & Settings'
     };
 
     const title = titles[route] || 'Ideal Coaching Center';
@@ -546,7 +780,7 @@ class AppRouter {
 
             <div class="form-group form-col-full">
               <label class="form-label">Email / Identifier</label>
-              <input type="text" class="form-control" value="${user.email || user.rollNumber || ''}" disabled style="background: var(--slate-100);" />
+              <input type="text" class="form-control" value="${user.email || user.rollNumber || user.teacherId || ''}" disabled style="background: var(--slate-100);" />
             </div>
 
             <div class="form-col-full" style="border-top: 1px solid var(--border-color); padding-top: 1.25rem; margin-top: 0.5rem;">
@@ -591,13 +825,15 @@ class AppRouter {
       await window.GlobalLoader.wrap(async () => {
         if (user.role === 'admin') {
           await window.FirebaseService.updateDocument('admins', user.id, { password: p1 });
+        } else if (user.role === 'teacher') {
+          await window.FirebaseService.updateDocument('teachers', user.id, { password: p1 });
         } else if (user.role === 'student') {
           await window.FirebaseService.updateDocument('students', user.id, { password: p1, credentialPin: p1 });
         }
         await window.AuditService.log({
           action: 'Password Changed',
           category: 'Security',
-          details: `Password changed for ${user.fullName || user.rollNumber}`
+          details: `Password changed for ${user.fullName || user.rollNumber || user.teacherId}`
         });
       }, 'Updating credentials securely in Firebase Auth...', 'Ideal Coaching Center');
 
@@ -610,7 +846,7 @@ class AppRouter {
   /**
    * Render Universal Login Page
    * Single clean login form for Ideal Coaching Center
-   * Requires Email and Password for all roles (Super Admin, Admin, and Student)
+   * Requires Email and Password for all roles (Super Admin, Admin, Teacher, and Student)
    */
   renderLoginPage() {
     const loginContainer = document.getElementById('login-view-container');
@@ -630,8 +866,8 @@ class AppRouter {
         <div class="login-form-wrapper">
           <form id="portal-login-form">
             <div class="form-group" style="margin-bottom: 1.25rem;">
-              <label class="form-label" for="login-email">Email Address <span class="req-star">*</span></label>
-              <input type="email" id="login-email" class="form-control" placeholder="name@ideal.edu" required autocomplete="username" />
+              <label class="form-label" for="login-email">Email Address / ID <span class="req-star">*</span></label>
+              <input type="text" id="login-email" class="form-control" placeholder="name@ideal.edu or ID" required autocomplete="username" />
             </div>
 
             <div class="form-group" style="margin-bottom: 1.5rem;">
@@ -646,7 +882,7 @@ class AppRouter {
         </div>
 
         <div style="padding: 0.85rem 1.75rem; border-top: 1px solid var(--border-color); display: flex; align-items: center; justify-content: center; font-size: 0.75rem; color: var(--slate-500); background: var(--slate-50); border-bottom-left-radius: var(--radius-lg); border-bottom-right-radius: var(--radius-lg);">
-          <span>Ideal Coaching Center • Official Student & Administration Portal</span>
+          <span>Ideal Coaching Center • Official Academic & Administration Portal</span>
         </div>
       </div>
     `;
@@ -662,6 +898,8 @@ class AppRouter {
         window.UIUtils.showToast('success', 'Welcome', `Welcome, ${user.fullName || 'User'}!`);
         if (user.role === 'student') {
           this.navigate('student-dashboard');
+        } else if (user.role === 'teacher') {
+          this.navigate('teacher-dashboard');
         } else if (user.role === 'super_admin') {
           this.navigate('super-admin-dashboard');
         } else {

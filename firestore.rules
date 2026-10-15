@@ -64,40 +64,124 @@ service cloud.firestore {
     }
     match /books/{id} {
       allow read: if true;
-      allow write, delete: if isValidSize();
+      allow create, update: if isValidSize();
+      allow delete: if true;
     }
     match /chapters/{id} {
       allow read: if true;
-      allow write, delete: if isValidSize();
+      allow create, update: if isValidSize();
+      allow delete: if true;
     }
 
     // 6. Security Audit Logs & Admin Profiles
     match /audit_logs/{id} {
-      allow read, create: if isValidSize();
+      allow read: if true;
+      allow create: if isValidSize();
+      allow delete: if true;
     }
     match /admins/{id} {
       allow read: if true;
-      allow write, delete: if isValidSize();
+      allow create, update: if isValidSize();
+      allow delete: if true;
     }
 
-    // 7. Student Notifications (Live alerts, fee receipts, circulars)
+    // 7. Student, Teacher & Administrative Notifications
     match /notifications/{id} {
       allow read: if true;
-      allow create, update, delete: if isValidSize();
+      allow create, update: if isValidSize();
+      allow delete: if true;
     }
 
-    // 8. WhatsApp Communication & Notification Audit Logs
-    match /whatsapp_settings/{doc} {
+    // 8. Receipt Templates & Customizer
+    match /receipt_templates/{id} {
       allow read: if true;
-      allow write, delete: if true;
+      allow create, update: if isValidSize();
+      allow delete: if true;
     }
-    match /whatsapp_templates/{id} {
+
+    // 9. Examination Sessions & Examination Fees
+    match /examination_sessions/{id} {
       allow read: if true;
-      allow write, delete: if isValidSize();
+      allow create, update: if isValidSize();
+      allow delete: if true;
     }
-    match /whatsapp_logs/{id} {
-      allow read, create: if isValidSize();
-      allow update, delete: if isValidSize();
+    match /examination_fees/{id} {
+      allow read: if true;
+      allow create, update: if isValidSize();
+      allow delete: if true;
+    }
+
+    // 10. Teacher Directory, Accounts & Academic Assignments
+    match /teachers/{id} {
+      allow read: if true;
+      allow create, update: if isValidSize();
+      allow delete: if true;
+    }
+    match /teacher_assignments/{id} {
+      allow read: if true;
+      allow create, update: if isValidSize();
+      allow delete: if true;
+    }
+
+    // 11. Timetable Scheduling (Class, Teacher, Room)
+    match /timetables/{id} {
+      allow read: if true;
+      allow create, update: if isValidSize();
+      allow delete: if true;
+    }
+
+    // 12. Attendance Cards & Scannable QR Tokens
+    match /attendance_cards/{id} {
+      allow read: if true;
+      allow create, update: if isValidSize();
+      allow delete: if true;
+    }
+
+    // 13. Teacher Attendance Records
+    match /teacher_attendance/{id} {
+      allow read: if true;
+      allow create, update: if isValidSize();
+      allow delete: if true;
+    }
+
+    // 14. Attendance Correction Requests & Approvals
+    match /attendance_corrections/{id} {
+      allow read: if true;
+      allow create, update: if isValidSize();
+      allow delete: if true;
+    }
+
+    // 15. Teacher Salary Configurations & Monthly Payroll
+    match /salary_configs/{id} {
+      allow read: if true;
+      allow create, update: if isValidSize();
+      allow delete: if true;
+    }
+    match /payroll/{id} {
+      allow read: if true;
+      allow create, update: if isValidSize();
+      allow delete: if true;
+    }
+
+    // 16. Student Academic Promotions & Progression Logs
+    match /promotions/{id} {
+      allow read: if true;
+      allow create, update: if isValidSize();
+      allow delete: if true;
+    }
+
+    // 17. Financial Adjustments, Refunds & Payment Corrections
+    match /financial_adjustments/{id} {
+      allow read: if true;
+      allow create, update: if isValidSize();
+      allow delete: if true;
+    }
+
+    // 18. Teacher Official Salary Receipts & Payment Vouchers
+    match /salary_receipts/{id} {
+      allow read: if true;
+      allow create, update: if isValidSize();
+      allow delete: if true;
     }
   }
 }

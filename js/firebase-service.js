@@ -120,9 +120,21 @@ class FirebaseService {
         'books',
         'chapters',
         'notifications',
-        'whatsapp_settings',
-        'whatsapp_templates',
-        'whatsapp_logs'
+        'audit_logs',
+        'receipt_templates',
+        'examination_sessions',
+        'examination_fees',
+        'teachers',
+        'teacher_assignments',
+        'timetables',
+        'attendance_cards',
+        'teacher_attendance',
+        'attendance_corrections',
+        'salary_configs',
+        'payroll',
+        'promotions',
+        'financial_adjustments',
+        'salary_receipts'
       ];
 
       for (const col of collectionsToPull) {
@@ -181,9 +193,19 @@ class FirebaseService {
         'chapters',
         'audit_logs',
         'notifications',
-        'whatsapp_settings',
-        'whatsapp_templates',
-        'whatsapp_logs'
+        'receipt_templates',
+        'examination_sessions',
+        'examination_fees',
+        'teachers',
+        'teacher_assignments',
+        'timetables',
+        'attendance_cards',
+        'teacher_attendance',
+        'attendance_corrections',
+        'salary_configs',
+        'payroll',
+        'promotions',
+        'financial_adjustments'
       ];
 
       let totalSynced = 0;
@@ -334,6 +356,21 @@ class FirebaseService {
           }
         });
       }
+      // Auto-backfill new collections for upgraded modules if missing in cached storage
+      const seed = this.getSeedData();
+      const newCols = [
+        'receipt_templates', 'examination_sessions', 'examination_fees',
+        'teachers', 'teacher_assignments', 'timetables', 'attendance_cards',
+        'teacher_attendance', 'attendance_corrections', 'salary_configs',
+        'payroll', 'promotions', 'financial_adjustments'
+      ];
+      newCols.forEach(col => {
+        if (!this.mockData[col] || Object.keys(this.mockData[col]).length === 0) {
+          this.mockData[col] = seed[col] || {};
+          migrated = true;
+        }
+      });
+
       if (migrated) {
         this.saveLocalStore();
       }
@@ -477,16 +514,11 @@ class FirebaseService {
           collectionMap[doc.id] = d;
         });
 
-        // If Firestore had documents, cleanly merge into local cache and return them
-        if (docs.length > 0) {
-          if (!this.mockData[collectionName]) this.mockData[collectionName] = {};
-          this.mockData[collectionName] = { ...this.mockData[collectionName], ...collectionMap };
-          this.saveLocalStore();
-          this.setStatus('online');
-          return Object.values(this.mockData[collectionName]);
-        }
+        // Cleanly update local cache to match Cloud Firestore state
+        this.mockData[collectionName] = collectionMap;
+        this.saveLocalStore();
         this.setStatus('online');
-        return this.mockData[collectionName] ? Object.values(this.mockData[collectionName]) : [];
+        return docs;
       } catch (err) {
         console.warn(`Firestore read fallback for ${collectionName}:`, err.message);
         this.setStatus('error', err.message);
@@ -555,22 +587,32 @@ class FirebaseService {
    */
   async deleteDocument(collectionName, id) {
     let deleted = false;
-    if (this.mockData[collectionName] && this.mockData[collectionName][id]) {
-      delete this.mockData[collectionName][id];
-      this.saveLocalStore();
-      this.notifySubscribers(collectionName);
-      deleted = true;
+    const strId = String(id);
+    if (this.mockData[collectionName]) {
+      if (this.mockData[collectionName][id]) {
+        delete this.mockData[collectionName][id];
+        deleted = true;
+      }
+      if (this.mockData[collectionName][strId]) {
+        delete this.mockData[collectionName][strId];
+        deleted = true;
+      }
+      if (deleted) {
+        this.saveLocalStore();
+        this.notifySubscribers(collectionName);
+      }
     }
 
     if (this.isLive && this.db) {
       try {
-        await this.db.collection(collectionName).doc(id).delete();
+        await this.db.collection(collectionName).doc(strId).delete();
         this.setStatus('online');
         deleted = true;
       } catch (err) {
         console.error(`Firestore delete error for ${collectionName}/${id}:`, err);
         this.setStatus('error', err.message);
         this.handleSyncError('Delete', collectionName, err);
+        throw err;
       }
     }
 
@@ -777,17 +819,6 @@ class FirebaseService {
       details: auditDetail
     });
 
-    // Asynchronous non-blocking WhatsApp Payment Received Notification hook
-    if (window.WhatsAppService && typeof window.WhatsAppService.notifyFeePayment === 'function') {
-      try {
-        window.WhatsAppService.notifyFeePayment(receiptRecord).catch(err => {
-          console.warn('⚠️ WhatsApp fee payment notification note:', err);
-        });
-      } catch (waErr) {
-        console.warn('⚠️ WhatsApp fee hook note:', waErr);
-      }
-    }
-
     return { receipt: receiptRecord, fees: targetFees };
   }
 
@@ -937,7 +968,20 @@ class FirebaseService {
       chapters: {},
       notifications: {},
       settings: {},
-      audit_logs: {}
+      audit_logs: {},
+      receipt_templates: {},
+      examination_sessions: {},
+      examination_fees: {},
+      teachers: {},
+      teacher_assignments: {},
+      timetables: {},
+      attendance_cards: {},
+      teacher_attendance: {},
+      attendance_corrections: {},
+      salary_configs: {},
+      payroll: {},
+      promotions: {},
+      financial_adjustments: {}
     };
 
     // 1. Settings
@@ -1211,7 +1255,1534 @@ class FirebaseService {
       timestamp: '2026-01-01T08:00:00Z'
     };
 
+    // 10. Receipt Customization Template
+    data.receipt_templates['default_template'] = {
+      id: 'default_template',
+      institutionName: 'Ideal Coaching Center',
+      tagline: 'Excellence in Education',
+      logoUrl: '',
+      address: 'Main Boulevard, Academic Block, Lahore, Pakistan',
+      phone: '+92 300 1234567',
+      email: 'info@idealcoaching.edu.pk',
+      receiptHeading: 'OFFICIAL FEE RECEIPT',
+      footerText: 'This is an official computer-generated receipt from Ideal Coaching Center. Fees once deposited are non-refundable and non-transferable.',
+      signatureLabelLeft: 'Depositor / Student Signature',
+      signatureLabelRight: 'Authorized Cashier / Principal',
+      receiptSize: 'A4',
+      printLayout: '2-copy', // 2-copy (Office Copy + Student Copy), single, thermal
+      currency: 'Rs.',
+      dateFormat: 'DD/MM/YYYY',
+      showStudentName: true,
+      showFatherName: true,
+      showRollNumber: true,
+      showContactNumber: true,
+      showClass: true,
+      showGroup: true,
+      showAcademicYear: true,
+      showFeeMonth: true,
+      showFeeType: true,
+      showExpectedAmount: true,
+      showPaidAmount: true,
+      showRemainingBalance: true,
+      showPaymentMethod: true,
+      showPaymentDate: true,
+      showTransactionRef: true,
+      showReceiptNumber: true,
+      showStaffMember: true,
+      updatedAt: '2026-09-01T08:00:00Z'
+    };
+
+    // 11. Teachers
+    data.teachers['tch_101'] = {
+      id: 'tch_101',
+      teacherId: 'TCH-101',
+      fullName: 'Prof. Dr. Tariq Mahmood',
+      email: 'tariq.teacher@ideal.edu',
+      password: 'Teacher@123',
+      contactNumber: '0300-4567891',
+      address: 'Model Town, Lahore',
+      qualifications: 'Ph.D. in Biological Sciences (PU)',
+      subjects: ['Biology', 'General Science'],
+      assignedClasses: ['12th', '11th', '10th'],
+      assignedGroups: ['Pre-Medical', 'Science'],
+      joiningDate: '2024-08-15',
+      employmentStatus: 'Permanent',
+      salaryType: 'fixed',
+      salaryAmount: 65000,
+      accountStatus: 'Active',
+      role: 'teacher',
+      createdAt: '2024-08-15T08:00:00Z'
+    };
+
+    data.teachers['tch_102'] = {
+      id: 'tch_102',
+      teacherId: 'TCH-102',
+      fullName: 'Engr. Hamza Bilal',
+      email: 'hamza.teacher@ideal.edu',
+      password: 'Teacher@123',
+      contactNumber: '0321-9876543',
+      address: 'Johar Town, Lahore',
+      qualifications: 'M.Sc. Computer Engineering (UET)',
+      subjects: ['Computer Science', 'Physics'],
+      assignedClasses: ['12th', '11th'],
+      assignedGroups: ['Computer Science', 'Pre-Engineering'],
+      joiningDate: '2025-01-10',
+      employmentStatus: 'Permanent',
+      salaryType: 'fixed',
+      salaryAmount: 60000,
+      accountStatus: 'Active',
+      role: 'teacher',
+      createdAt: '2025-01-10T08:00:00Z'
+    };
+
+    data.teachers['tch_103'] = {
+      id: 'tch_103',
+      teacherId: 'TCH-103',
+      fullName: 'Dr. Ayesha Siddiqua',
+      email: 'ayesha.teacher@ideal.edu',
+      password: 'Teacher@123',
+      contactNumber: '0333-5551234',
+      address: 'DHA Phase 5, Lahore',
+      qualifications: 'M.Phil Chemistry (GCU)',
+      subjects: ['Chemistry'],
+      assignedClasses: ['12th', '11th', '10th', '9th'],
+      assignedGroups: ['Pre-Medical', 'Pre-Engineering', 'Science'],
+      joiningDate: '2025-03-01',
+      employmentStatus: 'Permanent',
+      salaryType: 'per_period',
+      salaryAmount: 1200,
+      accountStatus: 'Active',
+      role: 'teacher',
+      createdAt: '2025-03-01T08:00:00Z'
+    };
+
+    // 12. Teacher Class & Subject Assignments
+    data.teacher_assignments['asgn_1'] = {
+      id: 'asgn_1',
+      teacherId: 'tch_101',
+      teacherName: 'Prof. Dr. Tariq Mahmood',
+      subject: 'Biology',
+      class: '12th',
+      group: 'Pre-Medical',
+      academicYear: '2026-2027',
+      startDate: '2026-08-01',
+      endDate: '2027-05-31',
+      status: 'Active',
+      createdAt: '2026-08-01T08:00:00Z'
+    };
+    data.teacher_assignments['asgn_2'] = {
+      id: 'asgn_2',
+      teacherId: 'tch_101',
+      teacherName: 'Prof. Dr. Tariq Mahmood',
+      subject: 'Biology',
+      class: '11th',
+      group: 'Pre-Medical',
+      academicYear: '2026-2027',
+      startDate: '2026-08-01',
+      endDate: '2027-05-31',
+      status: 'Active',
+      createdAt: '2026-08-01T08:00:00Z'
+    };
+    data.teacher_assignments['asgn_3'] = {
+      id: 'asgn_3',
+      teacherId: 'tch_102',
+      teacherName: 'Engr. Hamza Bilal',
+      subject: 'Computer Science',
+      class: '12th',
+      group: 'Computer Science',
+      academicYear: '2026-2027',
+      startDate: '2026-08-01',
+      endDate: '2027-05-31',
+      status: 'Active',
+      createdAt: '2026-08-01T08:00:00Z'
+    };
+    data.teacher_assignments['asgn_4'] = {
+      id: 'asgn_4',
+      teacherId: 'tch_102',
+      teacherName: 'Engr. Hamza Bilal',
+      subject: 'Physics',
+      class: '12th',
+      group: 'Pre-Engineering',
+      academicYear: '2026-2027',
+      startDate: '2026-08-01',
+      endDate: '2027-05-31',
+      status: 'Active',
+      createdAt: '2026-08-01T08:00:00Z'
+    };
+    data.teacher_assignments['asgn_5'] = {
+      id: 'asgn_5',
+      teacherId: 'tch_103',
+      teacherName: 'Dr. Ayesha Siddiqua',
+      subject: 'Chemistry',
+      class: '12th',
+      group: 'Pre-Medical',
+      academicYear: '2026-2027',
+      startDate: '2026-08-01',
+      endDate: '2027-05-31',
+      status: 'Active',
+      createdAt: '2026-08-01T08:00:00Z'
+    };
+
+    // 13. Timetables (Weekly Schedule)
+    const weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const periodsTemplate = [
+      { num: 1, start: '08:30', end: '09:20', subject: 'Computer Science', teacherId: 'tch_102', teacherName: 'Engr. Hamza Bilal', room: 'Lab 1', class: '12th', group: 'Computer Science' },
+      { num: 2, start: '09:25', end: '10:15', subject: 'Physics', teacherId: 'tch_102', teacherName: 'Engr. Hamza Bilal', room: 'Room 201', class: '12th', group: 'Computer Science' },
+      { num: 3, start: '10:20', end: '11:10', subject: 'Mathematics', teacherId: 'tch_102', teacherName: 'Engr. Hamza Bilal', room: 'Room 201', class: '12th', group: 'Computer Science' },
+      { num: 4, start: '11:40', end: '12:30', subject: 'English', teacherId: 'tch_101', teacherName: 'Prof. Dr. Tariq Mahmood', room: 'Room 201', class: '12th', group: 'Computer Science' },
+      { num: 1, start: '08:30', end: '09:20', subject: 'Biology', teacherId: 'tch_101', teacherName: 'Prof. Dr. Tariq Mahmood', room: 'Bio Lab', class: '12th', group: 'Pre-Medical' },
+      { num: 2, start: '09:25', end: '10:15', subject: 'Chemistry', teacherId: 'tch_103', teacherName: 'Dr. Ayesha Siddiqua', room: 'Chem Lab', class: '12th', group: 'Pre-Medical' },
+      { num: 3, start: '10:20', end: '11:10', subject: 'Physics', teacherId: 'tch_102', teacherName: 'Engr. Hamza Bilal', room: 'Room 202', class: '12th', group: 'Pre-Medical' }
+    ];
+
+    weekdays.forEach(day => {
+      periodsTemplate.forEach((p) => {
+        const id = `tt_${day.toLowerCase()}_${p.class.toLowerCase()}_${p.group.replace(/\s+/g, '_').toLowerCase()}_p${p.num}`;
+        data.timetables[id] = {
+          id,
+          academicYear: '2026-2027',
+          day,
+          periodNumber: p.num,
+          startTime: p.start,
+          endTime: p.end,
+          subject: p.subject,
+          teacherId: p.teacherId,
+          teacherName: p.teacherName,
+          class: p.class,
+          group: p.group,
+          room: p.room,
+          isPublished: true,
+          publishedAt: '2026-08-15T09:00:00Z',
+          updatedAt: '2026-08-15T09:00:00Z'
+        };
+      });
+    });
+
+    // 14. Examination Sessions & Examination Fees
+    data.examination_sessions['exam_mid_2026'] = {
+      id: 'exam_mid_2026',
+      name: 'Mid-Term Examination 2026',
+      academicYear: '2026-2027',
+      class: '12th',
+      group: 'All',
+      examType: 'Mid-Term',
+      startDate: '2026-10-12',
+      endDate: '2026-10-24',
+      feeAmount: 1500,
+      paymentDeadline: '2026-10-10',
+      description: 'Comprehensive mid-term evaluation covering first half syllabus of 12th class.',
+      status: 'Active',
+      createdAt: '2026-09-15T10:00:00Z'
+    };
+
+    data.examination_sessions['exam_mock_2027'] = {
+      id: 'exam_mock_2027',
+      name: 'Mock Board Examination 2027',
+      academicYear: '2026-2027',
+      class: '12th',
+      group: 'All',
+      examType: 'Mock Board',
+      startDate: '2027-02-15',
+      endDate: '2027-02-28',
+      feeAmount: 2000,
+      paymentDeadline: '2027-02-10',
+      description: 'Full length board paper simulation with external exam center layout.',
+      status: 'Upcoming',
+      createdAt: '2026-09-15T10:00:00Z'
+    };
+
+    // Examination fees for 12th class students
+    data.examination_fees['efee_std_1_mid'] = {
+      id: 'efee_std_1_mid',
+      sessionId: 'exam_mid_2026',
+      sessionName: 'Mid-Term Examination 2026',
+      academicYear: '2026-2027',
+      studentId: 'std_1',
+      studentName: 'Usman Farooq',
+      rollNumber: '1201',
+      class: '12th',
+      group: 'Computer Science',
+      totalFee: 1500,
+      paidAmount: 1500,
+      remainingBalance: 0,
+      status: 'Paid',
+      dueDate: '2026-10-10',
+      paymentDate: '2026-09-28',
+      receiptNumber: 'EXM-2026-00101',
+      paymentHistory: [
+        { amount: 1500, date: '2026-09-28', method: 'Cash Counter', receiptNumber: 'EXM-2026-00101', notes: 'Full fee paid' }
+      ],
+      createdAt: '2026-09-15T10:00:00Z'
+    };
+
+    data.examination_fees['efee_std_2_mid'] = {
+      id: 'efee_std_2_mid',
+      sessionId: 'exam_mid_2026',
+      sessionName: 'Mid-Term Examination 2026',
+      academicYear: '2026-2027',
+      studentId: 'std_2',
+      studentName: 'Mariam Siddiqui',
+      rollNumber: '1202',
+      class: '12th',
+      group: 'Pre-Medical',
+      totalFee: 1500,
+      paidAmount: 750,
+      remainingBalance: 750,
+      status: 'Partial',
+      dueDate: '2026-10-10',
+      paymentDate: '2026-09-29',
+      receiptNumber: 'EXM-2026-00102',
+      paymentHistory: [
+        { amount: 750, date: '2026-09-29', method: 'Cash Counter', receiptNumber: 'EXM-2026-00102', notes: 'First installment paid' }
+      ],
+      createdAt: '2026-09-15T10:00:00Z'
+    };
+
+    // 15. Attendance Cards & Scannable QR Tokens
+    data.attendance_cards['card_std_1'] = {
+      id: 'card_std_1',
+      personId: 'std_1',
+      personType: 'student',
+      name: 'Usman Farooq',
+      rollNumber: '1201',
+      class: '12th',
+      group: 'Computer Science',
+      token: 'ICC-STD-1201-9821-V1',
+      status: 'Active',
+      generatedAt: '2026-08-01T08:00:00Z'
+    };
+
+    data.attendance_cards['card_std_2'] = {
+      id: 'card_std_2',
+      personId: 'std_2',
+      personType: 'student',
+      name: 'Mariam Siddiqui',
+      rollNumber: '1202',
+      class: '12th',
+      group: 'Pre-Medical',
+      token: 'ICC-STD-1202-9822-V1',
+      status: 'Active',
+      generatedAt: '2026-08-01T08:00:00Z'
+    };
+
+    data.attendance_cards['card_tch_101'] = {
+      id: 'card_tch_101',
+      personId: 'tch_101',
+      personType: 'teacher',
+      name: 'Prof. Dr. Tariq Mahmood',
+      teacherId: 'TCH-101',
+      token: 'ICC-TCH-101-7711-V1',
+      status: 'Active',
+      generatedAt: '2026-08-01T08:00:00Z'
+    };
+
+    data.attendance_cards['card_tch_102'] = {
+      id: 'card_tch_102',
+      personId: 'tch_102',
+      personType: 'teacher',
+      name: 'Engr. Hamza Bilal',
+      teacherId: 'TCH-102',
+      token: 'ICC-TCH-102-7712-V1',
+      status: 'Active',
+      generatedAt: '2026-08-01T08:00:00Z'
+    };
+
+    // 16. Teacher Attendance
+    septWorkingDays.forEach(day => {
+      data.teacher_attendance[`tatt_101_${day}`] = {
+        id: `tatt_101_${day}`,
+        teacherId: 'tch_101',
+        teacherCode: 'TCH-101',
+        teacherName: 'Prof. Dr. Tariq Mahmood',
+        date: day,
+        status: 'Present',
+        arrivalTime: '08:15 AM',
+        method: 'QR Scan',
+        recordedBy: 'QR Gate Scanner',
+        createdAt: `${day}T08:15:00Z`
+      };
+      data.teacher_attendance[`tatt_102_${day}`] = {
+        id: `tatt_102_${day}`,
+        teacherId: 'tch_102',
+        teacherCode: 'TCH-102',
+        teacherName: 'Engr. Hamza Bilal',
+        date: day,
+        status: 'Present',
+        arrivalTime: '08:20 AM',
+        method: 'QR Scan',
+        recordedBy: 'QR Gate Scanner',
+        createdAt: `${day}T08:20:00Z`
+      };
+      data.teacher_attendance[`tatt_103_${day}`] = {
+        id: `tatt_103_${day}`,
+        teacherId: 'tch_103',
+        teacherCode: 'TCH-103',
+        teacherName: 'Dr. Ayesha Siddiqua',
+        date: day,
+        status: 'Present',
+        arrivalTime: '09:10 AM',
+        method: 'QR Scan',
+        recordedBy: 'QR Gate Scanner',
+        createdAt: `${day}T09:10:00Z`
+      };
+    });
+
+    // 17. Attendance Corrections
+    data.attendance_corrections['corr_1'] = {
+      id: 'corr_1',
+      requestType: 'student_attendance',
+      personId: 'std_2',
+      personName: 'Mariam Siddiqui',
+      rollNumber: '1202',
+      class: '12th',
+      group: 'Pre-Medical',
+      date: '2026-09-24',
+      originalStatus: 'Absent',
+      requestedStatus: 'Present',
+      reason: 'Student was present in Chemistry practical; scanner station was occupied during registration.',
+      requestedBy: 'Muhammad Tariq (Admin)',
+      status: 'Pending Approval',
+      createdAt: '2026-09-25T11:00:00Z'
+    };
+
+    // 18. Teacher Salary Configurations
+    data.salary_configs['salcfg_tch_101'] = {
+      id: 'salcfg_tch_101',
+      teacherId: 'tch_101',
+      teacherName: 'Prof. Dr. Tariq Mahmood',
+      salaryType: 'fixed',
+      baseAmount: 65000,
+      paymentCycle: 'Monthly',
+      allowances: 5000,
+      allowanceReason: 'Head of Science Allowance',
+      deductions: 2000,
+      deductionReason: 'Tax Deduction',
+      effectiveDate: '2026-01-01',
+      status: 'Active',
+      updatedAt: '2026-01-01T08:00:00Z'
+    };
+
+    data.salary_configs['salcfg_tch_102'] = {
+      id: 'salcfg_tch_102',
+      teacherId: 'tch_102',
+      teacherName: 'Engr. Hamza Bilal',
+      salaryType: 'fixed',
+      baseAmount: 60000,
+      paymentCycle: 'Monthly',
+      allowances: 3000,
+      allowanceReason: 'Computer Lab Incharge',
+      deductions: 0,
+      deductionReason: '',
+      effectiveDate: '2026-01-01',
+      status: 'Active',
+      updatedAt: '2026-01-01T08:00:00Z'
+    };
+
+    data.salary_configs['salcfg_tch_103'] = {
+      id: 'salcfg_tch_103',
+      teacherId: 'tch_103',
+      teacherName: 'Dr. Ayesha Siddiqua',
+      salaryType: 'per_period',
+      ratePerPeriod: 1200,
+      paymentCycle: 'Monthly',
+      allowances: 0,
+      deductions: 0,
+      effectiveDate: '2026-03-01',
+      status: 'Active',
+      updatedAt: '2026-03-01T08:00:00Z'
+    };
+
+    // 19. Payroll Records
+    data.payroll['pay_101_aug26'] = {
+      id: 'pay_101_aug26',
+      payrollRef: 'PAY-2026-08-101',
+      teacherId: 'tch_101',
+      teacherName: 'Prof. Dr. Tariq Mahmood',
+      teacherCode: 'TCH-101',
+      salaryMonth: 'August 2026',
+      academicYear: '2026-2027',
+      salaryType: 'fixed',
+      baseSalary: 65000,
+      allowances: 5000,
+      deductions: 2000,
+      advances: 0,
+      netPayable: 68000,
+      actualPaid: 68000,
+      status: 'Paid',
+      paymentDate: '2026-09-01',
+      paymentMethod: 'Bank Transfer (HBL)',
+      transactionRef: 'HBL-9988112',
+      disbursedBy: 'Super Administrator',
+      notes: 'Cleared on schedule for August 2026.',
+      createdAt: '2026-09-01T09:00:00Z'
+    };
+
+    data.payroll['pay_102_aug26'] = {
+      id: 'pay_102_aug26',
+      payrollRef: 'PAY-2026-08-102',
+      teacherId: 'tch_102',
+      teacherName: 'Engr. Hamza Bilal',
+      teacherCode: 'TCH-102',
+      salaryMonth: 'August 2026',
+      academicYear: '2026-2027',
+      salaryType: 'fixed',
+      baseSalary: 60000,
+      allowances: 3000,
+      deductions: 0,
+      advances: 0,
+      netPayable: 63000,
+      actualPaid: 63000,
+      status: 'Paid',
+      paymentDate: '2026-09-01',
+      paymentMethod: 'Bank Transfer (Meezan)',
+      transactionRef: 'MZN-7711223',
+      disbursedBy: 'Super Administrator',
+      notes: 'Cleared on schedule for August 2026.',
+      createdAt: '2026-09-01T09:15:00Z'
+    };
+
+    // 20. Promotions History
+    data.promotions['prom_2026_01'] = {
+      id: 'prom_2026_01',
+      sourceYear: '2025-2026',
+      destYear: '2026-2027',
+      sourceClass: '11th',
+      destClass: '12th',
+      sourceGroup: 'Computer Science',
+      destGroup: 'Computer Science',
+      studentCount: 14,
+      rollNumberPolicy: 'retain',
+      executedBy: 'Super Administrator',
+      date: '2026-01-08',
+      createdAt: '2026-01-08T10:00:00Z'
+    };
+
+    // 21. Financial Adjustments (Refunds & Payment Corrections)
+    data.financial_adjustments['adj_ref_1'] = {
+      id: 'adj_ref_1',
+      adjustmentType: 'refund',
+      studentId: 'std_1',
+      studentName: 'Usman Farooq',
+      rollNumber: '1201',
+      receiptNumber: '2608001120',
+      feeMonth: 'August 2026',
+      originalAmount: 3000,
+      requestedAmount: 500,
+      reason: 'Duplicate lab registration deposit collected by mistake.',
+      requestedBy: 'Muhammad Tariq (Admin)',
+      status: 'Pending Approval',
+      createdAt: '2026-09-26T14:00:00Z'
+    };
+
+    data.financial_adjustments['adj_corr_1'] = {
+      id: 'adj_corr_1',
+      adjustmentType: 'correction',
+      studentId: 'std_4',
+      studentName: 'Zaid Ali',
+      rollNumber: '1102',
+      receiptNumber: '2608001102',
+      feeMonth: 'August 2026',
+      originalAmount: 3000,
+      proposedAmount: 2500,
+      reason: 'Sibling discount of Rs. 500 was not recorded at cash counter.',
+      requestedBy: 'Ayesha Khan (Admin)',
+      status: 'Pending Approval',
+      createdAt: '2026-09-27T10:30:00Z'
+    };
+
     return data;
+  }
+
+  // ==========================================
+  // Specialized Methods for Upgraded Modules
+  // ==========================================
+
+  /**
+   * Get Active Receipt Template
+   */
+  async getReceiptTemplate() {
+    let tpl = await this.getDocument('receipt_templates', 'default_template');
+    if (!tpl) {
+      const seed = this.getSeedData();
+      tpl = seed.receipt_templates['default_template'];
+      await this.addDocument('receipt_templates', tpl);
+    }
+    return tpl;
+  }
+
+  /**
+   * Save Receipt Template
+   */
+  async saveReceiptTemplate(templateData) {
+    const updated = await this.updateDocument('receipt_templates', 'default_template', templateData);
+    await window.AuditService.log({
+      action: 'Receipt Template Updated',
+      category: 'Settings',
+      targetType: 'Template',
+      targetId: 'default_template',
+      details: `Custom receipt template layout and display toggles updated by Super Admin.`
+    });
+    return updated;
+  }
+
+  /**
+   * Process Examination Fee Payment (Supports partial and full payments with unique receipt)
+   */
+  async processExaminationFeePayment(examFeeId, paymentData) {
+    const fee = await this.getDocument('examination_fees', examFeeId);
+    if (!fee) throw new Error('Examination fee record not found.');
+
+    const payAmount = Number(paymentData.amount);
+    if (!payAmount || payAmount <= 0) throw new Error('Please enter a valid payment amount.');
+
+    const remaining = (Number(fee.totalFee) || 0) - (Number(fee.paidAmount) || 0);
+    if (payAmount > remaining) {
+      throw new Error(`Amount cannot exceed remaining balance of Rs. ${remaining}.`);
+    }
+
+    const newPaidAmount = (Number(fee.paidAmount) || 0) + payAmount;
+    const newRemaining = (Number(fee.totalFee) || 0) - newPaidAmount;
+    const newStatus = newRemaining === 0 ? 'Paid' : 'Partial';
+
+    const receipts = await this.getCollection('receipts');
+    const receiptNumber = 'EXM-' + window.UIUtils.generate10DigitReceiptNumber(receipts).slice(3);
+
+    const paymentEntry = {
+      amount: payAmount,
+      date: paymentData.paymentDate || new Date().toISOString().split('T')[0],
+      method: paymentData.paymentMethod || 'Cash Counter',
+      receiptNumber: receiptNumber,
+      transactionRef: paymentData.transactionRef || '',
+      notes: paymentData.notes || '',
+      recordedBy: paymentData.recordedBy || 'Admin'
+    };
+
+    const updatedHistory = Array.isArray(fee.paymentHistory) ? [...fee.paymentHistory, paymentEntry] : [paymentEntry];
+
+    // Update examination fee record
+    await this.updateDocument('examination_fees', fee.id, {
+      paidAmount: newPaidAmount,
+      remainingBalance: newRemaining,
+      status: newStatus,
+      paymentDate: paymentEntry.date,
+      receiptNumber: receiptNumber,
+      paymentHistory: updatedHistory
+    });
+
+    // Generate unique official examination receipt
+    const receiptRecord = {
+      id: `rcpt_${receiptNumber}`,
+      receiptNumber: receiptNumber,
+      feeType: 'Examination Fee',
+      examSessionId: fee.sessionId,
+      examSessionName: fee.sessionName,
+      studentId: fee.studentId,
+      studentName: fee.studentName,
+      rollNumber: fee.rollNumber,
+      class: fee.class,
+      group: fee.group,
+      academicYear: fee.academicYear,
+      expectedAmount: fee.totalFee,
+      paidAmount: payAmount,
+      totalPaidToDate: newPaidAmount,
+      remainingBalance: newRemaining,
+      paymentDate: paymentEntry.date,
+      paymentMode: paymentEntry.method,
+      transactionRef: paymentEntry.transactionRef,
+      receiptDate: new Date().toISOString(),
+      notes: `Examination Fee (${fee.sessionName}) - ${newStatus}`,
+      availableToStudent: true,
+      createdAt: new Date().toISOString()
+    };
+    await this.addDocument('receipts', receiptRecord);
+
+    // Create notification for student
+    await this.addDocument('notifications', {
+      studentId: fee.studentId,
+      rollNumber: fee.rollNumber,
+      title: 'Examination Fee Paid',
+      message: `Payment of Rs. ${payAmount} recorded for ${fee.sessionName}. Receipt #${receiptNumber} is now ready.`,
+      type: 'exam_receipt',
+      receiptNumber: receiptNumber,
+      isRead: false,
+      createdAt: new Date().toISOString()
+    });
+
+    // Audit log
+    await window.AuditService.log({
+      action: 'Examination Fee Payment Processed',
+      category: 'Finance',
+      targetType: 'ExamFee',
+      targetId: fee.id,
+      details: `Processed Rs. ${payAmount} for ${fee.studentName} (Roll #${fee.rollNumber}) for ${fee.sessionName}. Receipt #${receiptNumber}. Balance: Rs. ${newRemaining}`
+    });
+
+    return { fee: { ...fee, paidAmount: newPaidAmount, remainingBalance: newRemaining, status: newStatus }, receipt: receiptRecord };
+  }
+
+  /**
+   * Check Timetable Conflict
+   * Prevents assigning the same teacher to two overlapping periods or booking the same classroom
+   */
+  async checkTimetableConflict(periodData, excludePeriodId = null) {
+    const allTimetables = await this.getCollection('timetables');
+    const day = periodData.day;
+    const start = periodData.startTime;
+    const end = periodData.endTime;
+
+    // Helper to test time overlap between two intervals [s1, e1] and [s2, e2]
+    const overlaps = (s1, e1, s2, e2) => {
+      return (s1 < e2 && s2 < e1);
+    };
+
+    for (const tt of allTimetables) {
+      if (excludePeriodId && tt.id === excludePeriodId) continue;
+      if (tt.day !== day) continue;
+      if (tt.academicYear !== (periodData.academicYear || '2026-2027')) continue;
+
+      const timeConflict = overlaps(start, end, tt.startTime, tt.endTime) || (tt.periodNumber === Number(periodData.periodNumber));
+
+      if (timeConflict) {
+        // Teacher conflict check
+        if (tt.teacherId && periodData.teacherId && tt.teacherId === periodData.teacherId) {
+          return {
+            hasConflict: true,
+            type: 'teacher',
+            message: `Conflict: ${tt.teacherName} is already assigned to ${tt.class} (${tt.subject}) during Period ${tt.periodNumber} (${tt.startTime} - ${tt.endTime}) on ${day}.`
+          };
+        }
+        // Room conflict check
+        if (tt.room && periodData.room && tt.room.toLowerCase().trim() === periodData.room.toLowerCase().trim()) {
+          return {
+            hasConflict: true,
+            type: 'room',
+            message: `Room Conflict: ${tt.room} is already booked by ${tt.teacherName} for ${tt.class} during Period ${tt.periodNumber} (${tt.startTime} - ${tt.endTime}) on ${day}.`
+          };
+        }
+        // Same class/group duplicate period
+        if (tt.class === periodData.class && tt.group === periodData.group && tt.periodNumber === Number(periodData.periodNumber)) {
+          return {
+            hasConflict: true,
+            type: 'class_period',
+            message: `Class Conflict: Class ${tt.class} (${tt.group}) already has Period ${tt.periodNumber} assigned to ${tt.subject}.`
+          };
+        }
+      }
+    }
+
+    return { hasConflict: false };
+  }
+
+  /**
+   * Record QR Scan Attendance (Validates Token, prevents duplicates, handles students & teachers)
+   */
+  async recordQRScanAttendance(scanData) {
+    const { token, mode, selectedDate, selectedClass, selectedGroup, selectedSession, recordedBy } = scanData;
+    const date = selectedDate || new Date().toISOString().split('T')[0];
+
+    // Find attendance card matching token
+    const cards = await this.getCollection('attendance_cards');
+    let matchedCard = cards.find(c => c.token === token && c.status === 'Active');
+
+    if (!matchedCard) {
+      // Intelligent Dynamic Matching: Check if token directly identifies student or teacher
+      const students = await this.getCollection('students');
+      const teachers = await this.getCollection('teachers');
+      const rawToken = String(token || '').trim();
+
+      // Check student matches
+      const studentMatch = students.find(s => 
+        rawToken === `ICC-STD-${s.rollNumber}-${s.id}` ||
+        rawToken === s.id ||
+        rawToken === String(s.rollNumber) ||
+        (rawToken.startsWith('ICC-STD-') && (rawToken.includes(s.id) || rawToken.split('-')[2] === String(s.rollNumber)))
+      );
+
+      if (studentMatch) {
+        matchedCard = {
+          personType: 'student',
+          personId: studentMatch.id,
+          name: studentMatch.fullName,
+          status: 'Active'
+        };
+      } else {
+        // Check teacher matches
+        const teacherMatch = teachers.find(t =>
+          rawToken === `ICC-TCH-${t.teacherId}-${t.id}` ||
+          rawToken === t.id ||
+          rawToken.toLowerCase() === String(t.teacherId || '').toLowerCase() ||
+          (rawToken.startsWith('ICC-TCH-') && (rawToken.includes(t.id) || rawToken.toLowerCase().includes(String(t.teacherId || '').toLowerCase())))
+        );
+
+        if (teacherMatch) {
+          matchedCard = {
+            personType: 'teacher',
+            personId: teacherMatch.id,
+            name: teacherMatch.fullName,
+            status: 'Active'
+          };
+        }
+      }
+    }
+
+    if (!matchedCard) {
+      throw new Error(`Invalid QR Code: '${token}'. Badge token is not recognized in the institutional database.`);
+    }
+
+    const isStudent = matchedCard.personType === 'student';
+
+    if (isStudent) {
+      // Check student account status
+      const students = await this.getCollection('students');
+      const student = students.find(s => s.id === matchedCard.personId);
+      if (!student) throw new Error('Student record not found in system database.');
+      if (student.status !== 'Active') throw new Error(`Student ${student.fullName} is currently ${student.status}. Attendance scan blocked.`);
+
+      // Validate class filter only if explicitly requested and not 'All'
+      if (selectedClass && selectedClass !== 'All' && mode === 'student' && student.class !== selectedClass) {
+        throw new Error(`Wrong Class! Student is in Class ${student.class}, but scanner filter is set to ${selectedClass}.`);
+      }
+
+      // Check duplicate attendance for date and session
+      const existingAtt = await this.getCollection('attendance');
+      const duplicate = existingAtt.find(a => 
+        a.studentId === student.id && 
+        a.date === date && 
+        (!selectedSession || !a.session || a.session === selectedSession)
+      );
+
+      if (duplicate) {
+        return {
+          duplicate: true,
+          personType: 'student',
+          person: student,
+          record: duplicate,
+          message: `Already marked '${duplicate.status}' today on ${date} at ${duplicate.scanTime || 'earlier'}${selectedSession ? ` [${selectedSession}]` : ''}.`
+        };
+      }
+
+      const scanTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+      // Record Present Attendance
+      const attRecord = {
+        id: `att_${student.id}_${date}_${Date.now()}`,
+        studentId: student.id,
+        rollNumber: student.rollNumber,
+        studentName: student.fullName,
+        fatherName: student.fatherName || '',
+        class: student.class,
+        group: student.group || 'General',
+        date: date,
+        session: selectedSession || 'Morning',
+        status: 'Present',
+        method: 'QR Scan',
+        scanTime: scanTime,
+        markedBy: recordedBy || 'Touchless QR Gate Terminal',
+        createdAt: new Date().toISOString()
+      };
+
+      await this.addDocument('attendance', attRecord);
+
+      await window.AuditService.log({
+        action: 'Student QR Attendance Scanned',
+        category: 'Attendance',
+        targetType: 'Student',
+        targetId: student.id,
+        details: `Marked Present via QR Scan for ${student.fullName} (Roll #${student.rollNumber}, Class ${student.class}) at ${scanTime}`
+      });
+
+      return { 
+        success: true, 
+        personType: 'student',
+        duplicate: false, 
+        person: student, 
+        record: attRecord, 
+        message: `${student.fullName} (Roll #${student.rollNumber}) marked Present at ${scanTime}.` 
+      };
+
+    } else {
+      // Teacher Attendance
+      const teachers = await this.getCollection('teachers');
+      const teacher = teachers.find(t => t.id === matchedCard.personId);
+      if (!teacher) throw new Error('Faculty record not found in system database.');
+      const isTchActive = (teacher.accountStatus === 'Active' || teacher.status === 'Active' || (!teacher.accountStatus && teacher.status !== 'Disabled'));
+      if (!isTchActive) throw new Error(`Teacher account for ${teacher.fullName} is disabled. Attendance scan blocked.`);
+
+      // Check duplicate teacher scan
+      const existingTAtt = await this.getCollection('teacher_attendance');
+      const duplicate = existingTAtt.find(a => a.teacherId === teacher.id && a.date === date);
+
+      if (duplicate) {
+        return {
+          duplicate: true,
+          personType: 'teacher',
+          person: teacher,
+          record: duplicate,
+          message: `Faculty attendance already recorded today on ${date} (Arrived at ${duplicate.arrivalTime || 'earlier'}).`
+        };
+      }
+
+      const arrivalTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+      const tRecord = {
+        id: `tatt_${teacher.id}_${date}`,
+        teacherId: teacher.id,
+        teacherCode: teacher.teacherId,
+        teacherName: teacher.fullName,
+        date: date,
+        status: 'Present',
+        arrivalTime: arrivalTime,
+        method: 'QR Scan',
+        recordedBy: recordedBy || 'Touchless QR Gate Terminal',
+        createdAt: new Date().toISOString()
+      };
+
+      await this.addDocument('teacher_attendance', tRecord);
+
+      await window.AuditService.log({
+        action: 'Teacher QR Attendance Scanned',
+        category: 'Attendance',
+        targetType: 'Teacher',
+        targetId: teacher.id,
+        details: `Recorded Teacher Arrival via QR Scan: ${teacher.fullName} (${teacher.teacherId}) at ${arrivalTime}`
+      });
+
+      return { 
+        success: true, 
+        personType: 'teacher',
+        duplicate: false, 
+        person: teacher, 
+        record: tRecord, 
+        message: `Faculty ${teacher.fullName} marked Present at ${arrivalTime}.` 
+      };
+    }
+  }
+
+  /**
+   * Generate or Regenerate Attendance Card Token
+   */
+  async generateOrRegenerateAttendanceCard(personId, personType) {
+    const cards = await this.getCollection('attendance_cards');
+    let existing = cards.find(c => c.personId === personId && c.personType === personType);
+
+    const salt = Math.floor(1000 + Math.random() * 9000);
+    const token = personType === 'student'
+      ? `ICC-STD-${personId}-${salt}-V2`
+      : `ICC-TCH-${personId}-${salt}-V2`;
+
+    let personName = '';
+    let extraData = {};
+
+    if (personType === 'student') {
+      const student = await this.getDocument('students', personId);
+      if (!student) throw new Error('Student record not found.');
+      personName = student.fullName;
+      extraData = { rollNumber: student.rollNumber, class: student.class, group: student.group };
+    } else {
+      const teacher = await this.getDocument('teachers', personId);
+      if (!teacher) throw new Error('Teacher record not found.');
+      personName = teacher.fullName;
+      extraData = { teacherId: teacher.teacherId, subjects: teacher.subjects };
+    }
+
+    const cardData = {
+      personId,
+      personType,
+      name: personName,
+      ...extraData,
+      token,
+      status: 'Active',
+      generatedAt: new Date().toISOString()
+    };
+
+    if (existing) {
+      await this.updateDocument('attendance_cards', existing.id, cardData);
+    } else {
+      cardData.id = `card_${personType}_${personId}`;
+      await this.addDocument('attendance_cards', cardData);
+    }
+
+    await window.AuditService.log({
+      action: existing ? 'Attendance Card Token Regenerated' : 'Attendance Card Generated',
+      category: 'Attendance',
+      targetType: personType === 'student' ? 'Student' : 'Teacher',
+      targetId: personId,
+      details: `Generated secure attendance QR card for ${personName} (${personType})`
+    });
+
+    return cardData;
+  }
+
+  /**
+   * Generate Monthly Payroll for Teachers
+   */
+  async generateMonthlyPayroll(monthStr, academicYear = '2026-2027') {
+    const teachers = await this.getCollection('teachers');
+    const activeTeachers = teachers.filter(t => t.accountStatus === 'Active');
+    const existingPayroll = await this.getCollection('payroll');
+    const configs = await this.getCollection('salary_configs');
+
+    const createdRecords = [];
+
+    for (const teacher of activeTeachers) {
+      // Check if payroll already exists for this teacher & month
+      const exists = existingPayroll.find(p => p.teacherId === teacher.id && p.salaryMonth === monthStr);
+      if (exists) continue;
+
+      const cfg = configs.find(c => c.teacherId === teacher.id) || {
+        salaryType: teacher.salaryType || 'fixed',
+        baseAmount: Number(teacher.salaryAmount) || 50000,
+        allowances: 0,
+        deductions: 0
+      };
+
+      let baseSalary = Number(cfg.baseAmount) || Number(teacher.salaryAmount) || 50000;
+      let calculatedPayable = baseSalary + (Number(cfg.allowances) || 0) - (Number(cfg.deductions) || 0);
+
+      const payrollRef = `PAY-${monthStr.replace(/\s+/g, '_').toUpperCase()}-${teacher.teacherId || teacher.id}`;
+      const record = {
+        id: `pay_${teacher.id}_${monthStr.replace(/\s+/g, '_').toLowerCase()}`,
+        payrollRef,
+        teacherId: teacher.id,
+        teacherName: teacher.fullName,
+        teacherCode: teacher.teacherId || 'TCH',
+        salaryMonth: monthStr,
+        academicYear,
+        salaryType: cfg.salaryType || 'fixed',
+        baseSalary,
+        allowances: Number(cfg.allowances) || 0,
+        deductions: Number(cfg.deductions) || 0,
+        advances: 0,
+        netPayable: Math.max(0, calculatedPayable),
+        actualPaid: 0,
+        status: 'Unpaid',
+        paymentDate: null,
+        paymentMethod: null,
+        transactionRef: null,
+        notes: `Generated payroll for ${monthStr}`,
+        createdAt: new Date().toISOString()
+      };
+
+      await this.addDocument('payroll', record);
+      createdRecords.push(record);
+    }
+
+    await window.AuditService.log({
+      action: 'Monthly Payroll Batch Generated',
+      category: 'Payroll',
+      targetType: 'Payroll',
+      targetId: monthStr,
+      details: `Generated payroll slips for ${createdRecords.length} teachers for ${monthStr}`
+    });
+
+    return createdRecords;
+  }
+
+  /**
+   * Record Teacher Salary Payment, generate official salary receipt, update payroll, and notify teacher
+   */
+  async recordTeacherSalaryPayment(paymentData) {
+    const salaryMonth = paymentData.salaryMonth || new Date().toLocaleString('en-US', { month: 'long', year: 'numeric' });
+    const teacherId = paymentData.teacherId;
+    const baseSalary = Number(paymentData.baseSalary) || 0;
+    const allowances = Number(paymentData.allowances) || 0;
+    const deductions = Number(paymentData.deductions) || 0;
+    const netPayable = Number(paymentData.netPayable) || (baseSalary + allowances - deductions);
+    const amountPaid = Number(paymentData.amount !== undefined ? paymentData.amount : netPayable);
+    const paymentDate = paymentData.paymentDate || new Date().toISOString().split('T')[0];
+    const paymentMethod = paymentData.paymentMethod || 'Bank Transfer (HBL)';
+    const transactionRef = paymentData.transactionRef || '';
+    const notes = paymentData.notes || 'Official teacher salary disbursement';
+    const disbursedBy = paymentData.disbursedBy || 'Super Administrator';
+
+    // Generate unique salary receipt number: SAL-YYMM-XXXX
+    const now = new Date();
+    const yr = String(now.getFullYear()).slice(-2);
+    const mo = String(now.getMonth() + 1).padStart(2, '0');
+    const randCode = Math.floor(1000 + Math.random() * 9000);
+    const receiptNumber = paymentData.receiptNumber || `SAL-${yr}${mo}-${randCode}`;
+
+    // Find or create payroll document for this teacher & month
+    const allPayroll = await this.getCollection('payroll');
+    let payrollRecord = allPayroll.find(p => p.teacherId === teacherId && p.salaryMonth === salaryMonth);
+
+    const payrollRef = (payrollRecord && payrollRecord.payrollRef) ? payrollRecord.payrollRef : `PR-${Date.now().toString().slice(-6)}`;
+    const payrollPayload = {
+      teacherId,
+      teacherName: paymentData.teacherName,
+      teacherCode: paymentData.teacherCode || '',
+      salaryMonth,
+      academicYear: paymentData.academicYear || '2026-2027',
+      salaryType: paymentData.salaryType || 'fixed',
+      baseSalary,
+      allowances,
+      deductions,
+      netPayable,
+      actualPaid: amountPaid,
+      status: 'Paid',
+      paymentDate,
+      paymentMethod,
+      transactionRef,
+      receiptNumber,
+      notes,
+      disbursedBy,
+      payrollRef
+    };
+
+    if (payrollRecord) {
+      await this.updateDocument('payroll', payrollRecord.id, payrollPayload);
+      payrollRecord = { ...payrollRecord, ...payrollPayload };
+    } else {
+      const payrollId = `pr_${Date.now()}`;
+      payrollRecord = { id: payrollId, ...payrollPayload, createdAt: new Date().toISOString() };
+      await this.addDocument('payroll', payrollRecord);
+    }
+
+    // Create official Salary Receipt Document in 'salary_receipts' collection
+    const receiptRecord = {
+      id: `sal_rcpt_${receiptNumber}`,
+      receiptNumber,
+      payrollId: payrollRecord.id,
+      payrollRef,
+      teacherId,
+      teacherName: paymentData.teacherName,
+      teacherCode: paymentData.teacherCode || '',
+      salaryMonth,
+      academicYear: paymentData.academicYear || '2026-2027',
+      salaryType: paymentData.salaryType || 'fixed',
+      baseSalary,
+      allowances,
+      deductions,
+      netPayable,
+      amountPaid,
+      actualPaid: amountPaid,
+      paymentDate,
+      paymentMethod,
+      transactionRef,
+      disbursedBy,
+      notes,
+      status: 'Paid',
+      issuedAt: new Date().toISOString(),
+      createdAt: new Date().toISOString()
+    };
+    await this.addDocument('salary_receipts', receiptRecord);
+
+    // Send Real-time Notification to Teacher
+    await this.addDocument('notifications', {
+      teacherId,
+      title: 'Salary Disbursed & Official Receipt Issued',
+      message: `Your official salary for ${salaryMonth} of Rs. ${amountPaid.toLocaleString()} has been disbursed via ${paymentMethod}. Official Receipt Number: ${receiptNumber}.`,
+      type: 'salary_receipt',
+      receiptNumber,
+      salaryMonth,
+      amount: amountPaid,
+      isRead: false,
+      createdAt: new Date().toISOString()
+    });
+
+    // Audit log
+    await window.AuditService.log({
+      action: 'Teacher Salary Disbursed',
+      category: 'Payroll',
+      targetType: 'Teacher',
+      targetId: teacherId,
+      details: `Disbursed Rs. ${amountPaid.toLocaleString()} to ${paymentData.teacherName} for ${salaryMonth} via ${paymentMethod}. Official Receipt: #${receiptNumber}`
+    });
+
+    return { payrollRecord, receipt: receiptRecord };
+  }
+
+  /**
+   * Process Salary Payment (Invoked from payroll list or modal)
+   */
+  async processSalaryPayment(payrollId, paymentData) {
+    const record = await this.getDocument('payroll', payrollId);
+    if (!record) throw new Error('Payroll record not found.');
+
+    const result = await this.recordTeacherSalaryPayment({
+      teacherId: record.teacherId,
+      teacherName: record.teacherName,
+      teacherCode: record.teacherCode,
+      salaryMonth: record.salaryMonth,
+      academicYear: record.academicYear,
+      salaryType: record.salaryType,
+      baseSalary: record.baseSalary,
+      allowances: record.allowances,
+      deductions: record.deductions,
+      netPayable: record.netPayable,
+      amount: paymentData.amount || record.netPayable,
+      paymentDate: paymentData.paymentDate,
+      paymentMethod: paymentData.paymentMethod,
+      transactionRef: paymentData.transactionRef,
+      notes: paymentData.notes,
+      disbursedBy: paymentData.disbursedBy
+    });
+
+    return result.payrollRecord;
+  }
+
+  /**
+   * Get Teacher Official Salary Receipts
+   */
+  async getTeacherSalaryReceipts(teacherId = null) {
+    const receipts = await this.getCollection('salary_receipts');
+    if (!teacherId) {
+      return receipts.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+    }
+    return receipts
+      .filter(r => r.teacherId === teacherId || r.teacherCode === teacherId)
+      .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+  }
+
+  /**
+   * Get Single Teacher Salary Receipt by Receipt Number or ID
+   */
+  async getTeacherSalaryReceipt(receiptIdentifier) {
+    const receipts = await this.getCollection('salary_receipts');
+    return receipts.find(r => r.receiptNumber === String(receiptIdentifier) || r.id === String(receiptIdentifier)) || null;
+  }
+
+  /**
+   * Submit Attendance Correction Request
+   */
+  async submitAttendanceCorrection(reqData) {
+    const id = `corr_${Date.now()}`;
+    const newReq = {
+      id,
+      ...reqData,
+      status: 'Pending Approval',
+      createdAt: new Date().toISOString()
+    };
+    await this.addDocument('attendance_corrections', newReq);
+
+    // Notify Super Admin
+    await this.addDocument('notifications', {
+      targetRole: 'super_admin',
+      title: 'Pending Attendance Correction',
+      message: `Correction requested for ${reqData.personName} (${reqData.date}): Change status from ${reqData.originalStatus} to ${reqData.requestedStatus}.`,
+      type: 'attendance_correction_pending',
+      correctionId: id,
+      isRead: false,
+      createdAt: new Date().toISOString()
+    });
+
+    await window.AuditService.log({
+      action: 'Attendance Correction Submitted',
+      category: 'Attendance',
+      targetType: 'CorrectionRequest',
+      targetId: id,
+      details: `Requested change for ${reqData.personName} on ${reqData.date} from ${reqData.originalStatus} to ${reqData.requestedStatus}. Reason: ${reqData.reason}`
+    });
+
+    return newReq;
+  }
+
+  /**
+   * Approve Attendance Correction
+   */
+  async approveAttendanceCorrection(correctionId, reason, approvedBy = 'Super Administrator') {
+    const req = await this.getDocument('attendance_corrections', correctionId);
+    if (!req) throw new Error('Correction request not found.');
+
+    // Update attendance record in the database atomically
+    if (req.requestType === 'teacher_attendance') {
+      const allTAtt = await this.getCollection('teacher_attendance');
+      const targetAtt = allTAtt.find(a => a.teacherId === req.personId && a.date === req.date);
+      if (targetAtt) {
+        await this.updateDocument('teacher_attendance', targetAtt.id, {
+          status: req.requestedStatus,
+          corrected: true,
+          correctedBy: approvedBy,
+          correctionReason: reason || req.reason
+        });
+      }
+    } else {
+      // Student attendance
+      const allAtt = await this.getCollection('attendance');
+      const targetAtt = allAtt.find(a => a.studentId === req.personId && a.date === req.date);
+      if (targetAtt) {
+        await this.updateDocument('attendance', targetAtt.id, {
+          status: req.requestedStatus,
+          corrected: true,
+          correctedBy: approvedBy,
+          correctionReason: reason || req.reason
+        });
+      }
+    }
+
+    // Mark request approved
+    await this.updateDocument('attendance_corrections', req.id, {
+      status: 'Approved',
+      approvedBy,
+      approvalReason: reason || '',
+      decidedAt: new Date().toISOString()
+    });
+
+    await window.AuditService.log({
+      action: 'Attendance Correction Approved',
+      category: 'Attendance',
+      targetType: 'CorrectionRequest',
+      targetId: req.id,
+      details: `Approved attendance change for ${req.personName} on ${req.date} to ${req.requestedStatus} by ${approvedBy}`
+    });
+
+    return true;
+  }
+
+  /**
+   * Reject Attendance Correction
+   */
+  async rejectAttendanceCorrection(correctionId, reason, rejectedBy = 'Super Administrator') {
+    const req = await this.getDocument('attendance_corrections', correctionId);
+    if (!req) throw new Error('Correction request not found.');
+
+    await this.updateDocument('attendance_corrections', req.id, {
+      status: 'Rejected',
+      rejectedBy,
+      rejectionReason: reason || 'Denied by Super Administrator',
+      decidedAt: new Date().toISOString()
+    });
+
+    await window.AuditService.log({
+      action: 'Attendance Correction Rejected',
+      category: 'Attendance',
+      targetType: 'CorrectionRequest',
+      targetId: req.id,
+      details: `Rejected attendance change for ${req.personName} on ${req.date}. Reason: ${reason || 'Denied'}`
+    });
+
+    return true;
+  }
+
+  /**
+   * Submit Financial Adjustment Request (Refund or Payment Correction)
+   */
+  async submitFinancialAdjustment(adjData) {
+    const id = `adj_${Date.now()}`;
+    const newAdj = {
+      id,
+      ...adjData,
+      status: 'Pending Approval',
+      createdAt: new Date().toISOString()
+    };
+    await this.addDocument('financial_adjustments', newAdj);
+
+    // Notify Super Admin
+    await this.addDocument('notifications', {
+      targetRole: 'super_admin',
+      title: `Financial Adjustment Request (${adjData.adjustmentType.toUpperCase()})`,
+      message: `Pending ${adjData.adjustmentType} request for ${adjData.studentName} (Receipt #${adjData.receiptNumber}). Reason: ${adjData.reason}`,
+      type: 'financial_adjustment_pending',
+      adjustmentId: id,
+      isRead: false,
+      createdAt: new Date().toISOString()
+    });
+
+    await window.AuditService.log({
+      action: 'Financial Adjustment Submitted',
+      category: 'Finance',
+      targetType: 'FinancialAdjustment',
+      targetId: id,
+      details: `Submitted ${adjData.adjustmentType} request for ${adjData.studentName} (Roll #${adjData.rollNumber}) on Receipt #${adjData.receiptNumber}`
+    });
+
+    return newAdj;
+  }
+
+  /**
+   * Approve Financial Adjustment (Refund or Payment Correction)
+   */
+  async approveFinancialAdjustment(adjId, reason, approvedBy = 'Super Administrator') {
+    const adj = await this.getDocument('financial_adjustments', adjId);
+    if (!adj) throw new Error('Adjustment record not found.');
+
+    const receipts = await this.getCollection('receipts');
+    const existingRcpt = receipts.find(r => r.receiptNumber === adj.receiptNumber);
+
+    if (adj.adjustmentType === 'refund') {
+      // Issue separate official Refund Receipt
+      const refundRcptNumber = 'RFD-' + window.UIUtils.generate10DigitReceiptNumber(receipts).slice(4);
+      const refundRecord = {
+        id: `rcpt_${refundRcptNumber}`,
+        receiptNumber: refundRcptNumber,
+        originalReceiptNumber: adj.receiptNumber,
+        feeType: 'Fee Refund',
+        studentId: adj.studentId,
+        studentName: adj.studentName,
+        rollNumber: adj.rollNumber,
+        month: adj.feeMonth || 'Tuition Refund',
+        academicYear: existingRcpt ? existingRcpt.academicYear : '2026-2027',
+        refundAmount: Number(adj.requestedAmount),
+        paidAmount: -Math.abs(Number(adj.requestedAmount)),
+        paymentDate: new Date().toISOString().split('T')[0],
+        paymentMode: 'Cash Refund',
+        receiptDate: new Date().toISOString(),
+        notes: `Refund approved: ${reason || adj.reason}`,
+        availableToStudent: true,
+        createdAt: new Date().toISOString()
+      };
+      await this.addDocument('receipts', refundRecord);
+
+      // Link refund to original receipt
+      if (existingRcpt) {
+        await this.updateDocument('receipts', existingRcpt.id, {
+          hasRefund: true,
+          refundReceiptNumber: refundRcptNumber,
+          refundAmount: Number(adj.requestedAmount)
+        });
+      }
+
+    } else if (adj.adjustmentType === 'correction') {
+      // Issue Corrected Receipt with adjusted amount
+      const corrRcptNumber = 'COR-' + window.UIUtils.generate10DigitReceiptNumber(receipts).slice(4);
+      const corrRecord = {
+        id: `rcpt_${corrRcptNumber}`,
+        receiptNumber: corrRcptNumber,
+        originalReceiptNumber: adj.receiptNumber,
+        feeType: 'Payment Correction',
+        studentId: adj.studentId,
+        studentName: adj.studentName,
+        rollNumber: adj.rollNumber,
+        month: adj.feeMonth || 'Tuition Correction',
+        academicYear: existingRcpt ? existingRcpt.academicYear : '2026-2027',
+        correctedAmount: Number(adj.proposedAmount),
+        paidAmount: Number(adj.proposedAmount),
+        paymentDate: new Date().toISOString().split('T')[0],
+        receiptDate: new Date().toISOString(),
+        notes: `Corrected payment: ${reason || adj.reason}`,
+        availableToStudent: true,
+        createdAt: new Date().toISOString()
+      };
+      await this.addDocument('receipts', corrRecord);
+
+      if (existingRcpt) {
+        await this.updateDocument('receipts', existingRcpt.id, {
+          isCorrected: true,
+          correctedReceiptNumber: corrRcptNumber,
+          adjustedAmount: Number(adj.proposedAmount)
+        });
+      }
+    }
+
+    // Mark adjustment approved
+    await this.updateDocument('financial_adjustments', adj.id, {
+      status: 'Approved',
+      approvedBy,
+      approvalReason: reason || '',
+      decidedAt: new Date().toISOString()
+    });
+
+    await window.AuditService.log({
+      action: 'Financial Adjustment Approved',
+      category: 'Finance',
+      targetType: 'FinancialAdjustment',
+      targetId: adj.id,
+      details: `Approved ${adj.adjustmentType} for ${adj.studentName} (Receipt #${adj.receiptNumber}) by ${approvedBy}`
+    });
+
+    return true;
+  }
+
+  /**
+   * Reject Financial Adjustment
+   */
+  async rejectFinancialAdjustment(adjId, reason, rejectedBy = 'Super Administrator') {
+    const adj = await this.getDocument('financial_adjustments', adjId);
+    if (!adj) throw new Error('Adjustment record not found.');
+
+    await this.updateDocument('financial_adjustments', adj.id, {
+      status: 'Rejected',
+      rejectedBy,
+      rejectionReason: reason || 'Declined by Super Administrator',
+      decidedAt: new Date().toISOString()
+    });
+
+    await window.AuditService.log({
+      action: 'Financial Adjustment Rejected',
+      category: 'Finance',
+      targetType: 'FinancialAdjustment',
+      targetId: adj.id,
+      details: `Rejected ${adj.adjustmentType} for ${adj.studentName} (Receipt #${adj.receiptNumber}). Reason: ${reason || 'Declined'}`
+    });
+
+    return true;
+  }
+
+  /**
+   * Promote Students to Next Academic Class
+   * Preserves historical fees, attendance, results, and generates new fee schedule for destination class
+   */
+  async promoteStudents(promotionData) {
+    const { sourceYear, destYear, sourceClass, destClass, sourceGroup, destGroup, studentIds, rollNumberPolicy, executedBy } = promotionData;
+
+    const students = await this.getCollection('students');
+    const targetStudents = students.filter(s => studentIds.includes(s.id));
+
+    if (targetStudents.length === 0) throw new Error('No students selected for promotion.');
+
+    const promotedRecords = [];
+    for (const student of targetStudents) {
+      // Archive historical enrollment snapshot in student record
+      const previousEnrollment = {
+        academicYear: student.academicYear || sourceYear,
+        class: student.class,
+        group: student.group,
+        rollNumber: student.rollNumber,
+        promotedDate: new Date().toISOString()
+      };
+
+      const history = Array.isArray(student.promotionHistory) ? [...student.promotionHistory, previousEnrollment] : [previousEnrollment];
+
+      // New roll number if specified, otherwise retain
+      let newRoll = student.rollNumber;
+      if (rollNumberPolicy === 'prefix_dest_class') {
+        const classDigits = destClass.replace(/[^0-9]/g, '');
+        newRoll = `${classDigits}${student.rollNumber.slice(-2)}`;
+      }
+
+      // Update student profile with new class and group
+      await this.updateDocument('students', student.id, {
+        class: destClass,
+        group: destGroup,
+        rollNumber: newRoll,
+        academicYear: destYear,
+        promotionHistory: history,
+        lastPromotedAt: new Date().toISOString()
+      });
+
+      // Generate clean fee schedule for the destination class and academic year
+      const updatedStudent = { ...student, class: destClass, group: destGroup, rollNumber: newRoll };
+      await this.initStudentFeeSchedule(updatedStudent);
+
+      promotedRecords.push(updatedStudent);
+    }
+
+    // Record promotion batch log
+    const promBatch = {
+      id: `prom_${Date.now()}`,
+      sourceYear,
+      destYear,
+      sourceClass,
+      destClass,
+      sourceGroup,
+      destGroup,
+      studentCount: promotedRecords.length,
+      rollNumberPolicy,
+      executedBy: executedBy || 'Super Administrator',
+      date: new Date().toISOString().split('T')[0],
+      createdAt: new Date().toISOString()
+    };
+    await this.addDocument('promotions', promBatch);
+
+    await window.AuditService.log({
+      action: 'Student Promotion Batch Executed',
+      category: 'Academic',
+      targetType: 'Promotion',
+      targetId: promBatch.id,
+      details: `Promoted ${promotedRecords.length} students from Class ${sourceClass} (${sourceGroup}) to Class ${destClass} (${destGroup}) for ${destYear}`
+    });
+
+    return promBatch;
   }
 }
 

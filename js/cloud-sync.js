@@ -209,14 +209,24 @@ service cloud.firestore {
     match /attendance/{attId} { allow read: if true; allow create, update: if isValidSize() &amp;&amp; request.resource.data.studentId is string; allow delete: if true; }
     match /diary/{id} { allow read: if true; allow create, update: if isValidSize() &amp;&amp; request.resource.data.subject is string; allow delete: if true; }
     match /announcements/{id} { allow read: if true; allow create, update: if isValidSize() &amp;&amp; request.resource.data.title is string; allow delete: if true; }
-    match /books/{id} { allow read: if true; allow write, delete: if isValidSize(); }
-    match /chapters/{id} { allow read: if true; allow write, delete: if isValidSize(); }
-    match /audit_logs/{id} { allow read, create: if isValidSize(); }
-    match /admins/{id} { allow read: if true; allow write, delete: if isValidSize(); }
-    match /notifications/{id} { allow read: if true; allow create, update, delete: if isValidSize(); }
-    match /whatsapp_settings/{doc} { allow read, write, delete: if true; }
-    match /whatsapp_templates/{id} { allow read: if true; allow write, delete: if isValidSize(); }
-    match /whatsapp_logs/{id} { allow read, create: if isValidSize(); allow update, delete: if isValidSize(); }
+    match /books/{id} { allow read: if true; allow create, update: if isValidSize(); allow delete: if true; }
+    match /chapters/{id} { allow read: if true; allow create, update: if isValidSize(); allow delete: if true; }
+    match /audit_logs/{id} { allow read: if true; allow create: if isValidSize(); allow delete: if true; }
+    match /admins/{id} { allow read: if true; allow create, update: if isValidSize(); allow delete: if true; }
+    match /notifications/{id} { allow read: if true; allow create, update: if isValidSize(); allow delete: if true; }
+    match /receipt_templates/{id} { allow read: if true; allow create, update: if isValidSize(); allow delete: if true; }
+    match /examination_sessions/{id} { allow read: if true; allow create, update: if isValidSize(); allow delete: if true; }
+    match /examination_fees/{id} { allow read: if true; allow create, update: if isValidSize(); allow delete: if true; }
+    match /teachers/{id} { allow read: if true; allow create, update: if isValidSize(); allow delete: if true; }
+    match /teacher_assignments/{id} { allow read: if true; allow create, update: if isValidSize(); allow delete: if true; }
+    match /timetables/{id} { allow read: if true; allow create, update: if isValidSize(); allow delete: if true; }
+    match /attendance_cards/{id} { allow read: if true; allow create, update: if isValidSize(); allow delete: if true; }
+    match /teacher_attendance/{id} { allow read: if true; allow create, update: if isValidSize(); allow delete: if true; }
+    match /attendance_corrections/{id} { allow read: if true; allow create, update: if isValidSize(); allow delete: if true; }
+    match /salary_configs/{id} { allow read: if true; allow create, update: if isValidSize(); allow delete: if true; }
+    match /payroll/{id} { allow read: if true; allow create, update: if isValidSize(); allow delete: if true; }
+    match /promotions/{id} { allow read: if true; allow create, update: if isValidSize(); allow delete: if true; }
+    match /financial_adjustments/{id} { allow read: if true; allow create, update: if isValidSize(); allow delete: if true; }
   }
 }</code></pre>
               </div>

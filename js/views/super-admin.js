@@ -555,165 +555,430 @@ const SuperAdminView = {
   },
 
   /**
-   * System Settings View
+   * Comprehensive System Settings Hub (12 Core Institutional Panels)
    */
-  async renderSystemSettings(container) {
+  async renderSystemSettings(container, activeSubTab = 'general') {
     const settings = await window.FirebaseService.getSystemSettings();
+    const tpl = await window.FirebaseService.getReceiptTemplate();
 
     container.innerHTML = `
-      <div class="data-card">
-        <div class="data-card-header">
-          <div class="data-card-title-group">
-            <h2 class="data-card-title">System Settings & Academic Configuration</h2>
-            <span class="data-card-subtitle">Global academic year, fee defaults, and coaching center parameters • Ideal Coaching Center</span>
+      <div class="page-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem;">
+        <div>
+          <div class="breadcrumbs" style="font-size: 0.8rem; color: var(--slate-500); margin-bottom: 0.25rem;">
+            <span>Super Admin</span> <span style="margin: 0 0.4rem;">/</span> <span style="color: var(--primary-600); font-weight: 600;">System Settings</span>
           </div>
-          <div class="data-card-actions">
-            <button type="button" class="btn btn-primary" id="btn-save-settings">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
-                <polyline points="17 21 17 13 7 13 7 21"></polyline>
-                <polyline points="7 3 7 8 15 8"></polyline>
-              </svg>
-              Save Configuration
-            </button>
-          </div>
+          <h1 style="font-size: 1.6rem; color: var(--slate-900); font-weight: 800; margin: 0;">Institutional System Settings</h1>
+          <p style="color: var(--slate-500); font-size: 0.85rem; margin-top: 0.25rem;">
+            Central management of institutional parameters, fee rules, academic progressions, and hardware integrations • Ideal Coaching Center
+          </p>
         </div>
+        <div style="display: flex; gap: 0.65rem; flex-wrap: wrap;">
+          <button type="button" class="btn btn-secondary" id="btn-cancel-settings">
+            Cancel
+          </button>
+          <button type="button" class="btn btn-primary" id="btn-save-settings">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+              <polyline points="17 21 17 13 7 13 7 21"></polyline>
+              <polyline points="7 3 7 8 15 8"></polyline>
+            </svg>
+            Save Changes
+          </button>
+        </div>
+      </div>
 
+      <!-- 12-Panel Navigation Tabs Grid -->
+      <div class="settings-subtabs" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 0.5rem; margin-bottom: 1.5rem;">
+        <button type="button" class="btn-setting-tab ${activeSubTab === 'general' ? 'active-stab' : ''}" data-tab="general" style="padding: 0.65rem 0.85rem; border-radius: var(--radius-md); border: 1px solid var(--border-color); background: ${activeSubTab === 'general' ? 'var(--primary-600)' : 'var(--slate-50)'}; color: ${activeSubTab === 'general' ? '#fff' : 'var(--slate-700)'}; font-weight: 700; text-align: left; cursor: pointer; font-size: 0.8rem;">
+          1. General Settings
+        </button>
+        <button type="button" class="btn-setting-tab ${activeSubTab === 'fees' ? 'active-stab' : ''}" data-tab="fees" style="padding: 0.65rem 0.85rem; border-radius: var(--radius-md); border: 1px solid var(--border-color); background: ${activeSubTab === 'fees' ? 'var(--primary-600)' : 'var(--slate-50)'}; color: ${activeSubTab === 'fees' ? '#fff' : 'var(--slate-700)'}; font-weight: 700; text-align: left; cursor: pointer; font-size: 0.8rem;">
+          2. Fee Settings
+        </button>
+        <button type="button" class="btn-setting-tab ${activeSubTab === 'exam' ? 'active-stab' : ''}" data-tab="exam" style="padding: 0.65rem 0.85rem; border-radius: var(--radius-md); border: 1px solid var(--border-color); background: ${activeSubTab === 'exam' ? 'var(--primary-600)' : 'var(--slate-50)'}; color: ${activeSubTab === 'exam' ? '#fff' : 'var(--slate-700)'}; font-weight: 700; text-align: left; cursor: pointer; font-size: 0.8rem;">
+          3. Examination Settings
+        </button>
+        <button type="button" class="btn-setting-tab ${activeSubTab === 'teacher' ? 'active-stab' : ''}" data-tab="teacher" style="padding: 0.65rem 0.85rem; border-radius: var(--radius-md); border: 1px solid var(--border-color); background: ${activeSubTab === 'teacher' ? 'var(--primary-600)' : 'var(--slate-50)'}; color: ${activeSubTab === 'teacher' ? '#fff' : 'var(--slate-700)'}; font-weight: 700; text-align: left; cursor: pointer; font-size: 0.8rem;">
+          4. Teacher Management
+        </button>
+        <button type="button" class="btn-setting-tab ${activeSubTab === 'attendance' ? 'active-stab' : ''}" data-tab="attendance" style="padding: 0.65rem 0.85rem; border-radius: var(--radius-md); border: 1px solid var(--border-color); background: ${activeSubTab === 'attendance' ? 'var(--primary-600)' : 'var(--slate-50)'}; color: ${activeSubTab === 'attendance' ? '#fff' : 'var(--slate-700)'}; font-weight: 700; text-align: left; cursor: pointer; font-size: 0.8rem;">
+          5. Attendance Settings
+        </button>
+        <button type="button" class="btn-setting-tab ${activeSubTab === 'timetable' ? 'active-stab' : ''}" data-tab="timetable" style="padding: 0.65rem 0.85rem; border-radius: var(--radius-md); border: 1px solid var(--border-color); background: ${activeSubTab === 'timetable' ? 'var(--primary-600)' : 'var(--slate-50)'}; color: ${activeSubTab === 'timetable' ? '#fff' : 'var(--slate-700)'}; font-weight: 700; text-align: left; cursor: pointer; font-size: 0.8rem;">
+          6. Timetable Settings
+        </button>
+        <button type="button" class="btn-setting-tab ${activeSubTab === 'salary' ? 'active-stab' : ''}" data-tab="salary" style="padding: 0.65rem 0.85rem; border-radius: var(--radius-md); border: 1px solid var(--border-color); background: ${activeSubTab === 'salary' ? 'var(--primary-600)' : 'var(--slate-50)'}; color: ${activeSubTab === 'salary' ? '#fff' : 'var(--slate-700)'}; font-weight: 700; text-align: left; cursor: pointer; font-size: 0.8rem;">
+          7. Salary & Payroll
+        </button>
+        <button type="button" class="btn-setting-tab ${activeSubTab === 'promotions' ? 'active-stab' : ''}" data-tab="promotions" style="padding: 0.65rem 0.85rem; border-radius: var(--radius-md); border: 1px solid var(--border-color); background: ${activeSubTab === 'promotions' ? 'var(--primary-600)' : 'var(--slate-50)'}; color: ${activeSubTab === 'promotions' ? '#fff' : 'var(--slate-700)'}; font-weight: 700; text-align: left; cursor: pointer; font-size: 0.8rem;">
+          8. Promotion Settings
+        </button>
+        <button type="button" class="btn-setting-tab ${activeSubTab === 'approvals' ? 'active-stab' : ''}" data-tab="approvals" style="padding: 0.65rem 0.85rem; border-radius: var(--radius-md); border: 1px solid var(--border-color); background: ${activeSubTab === 'approvals' ? 'var(--primary-600)' : 'var(--slate-50)'}; color: ${activeSubTab === 'approvals' ? '#fff' : 'var(--slate-700)'}; font-weight: 700; text-align: left; cursor: pointer; font-size: 0.8rem;">
+          9. Approval Workflows
+        </button>
+        <button type="button" class="btn-setting-tab ${activeSubTab === 'receipt' ? 'active-stab' : ''}" data-tab="receipt" style="padding: 0.65rem 0.85rem; border-radius: var(--radius-md); border: 1px solid var(--border-color); background: ${activeSubTab === 'receipt' ? 'var(--primary-600)' : 'var(--slate-50)'}; color: ${activeSubTab === 'receipt' ? '#fff' : 'var(--slate-700)'}; font-weight: 700; text-align: left; cursor: pointer; font-size: 0.8rem;">
+          10. Receipt Customization
+        </button>
+        <button type="button" class="btn-setting-tab ${activeSubTab === 'qr' ? 'active-stab' : ''}" data-tab="qr" style="padding: 0.65rem 0.85rem; border-radius: var(--radius-md); border: 1px solid var(--border-color); background: ${activeSubTab === 'qr' ? 'var(--primary-600)' : 'var(--slate-50)'}; color: ${activeSubTab === 'qr' ? '#fff' : 'var(--slate-700)'}; font-weight: 700; text-align: left; cursor: pointer; font-size: 0.8rem;">
+          11. QR Attendance Settings
+        </button>
+        <button type="button" class="btn-setting-tab ${activeSubTab === 'data' ? 'active-stab' : ''}" data-tab="data" style="padding: 0.65rem 0.85rem; border-radius: var(--radius-md); border: 1px solid var(--border-color); background: ${activeSubTab === 'data' ? 'var(--primary-600)' : 'var(--slate-50)'}; color: ${activeSubTab === 'data' ? '#fff' : 'var(--slate-700)'}; font-weight: 700; text-align: left; cursor: pointer; font-size: 0.8rem;">
+          12. Data Management
+        </button>
+      </div>
+
+      <!-- Active Settings Subpanel Container -->
+      <div class="data-card" id="settings-panel-content">
+        ${this.buildSettingsPanelContent(activeSubTab, settings, tpl)}
+      </div>
+    `;
+
+    this.attachSettingsEvents(container, settings, activeSubTab);
+  },
+
+  buildSettingsPanelContent(tab, settings, tpl) {
+    if (tab === 'general') {
+      return `
+        <div class="data-card-header">
+          <h3 class="data-card-title">General Institutional Settings</h3>
+          <span class="badge badge-paid">Protected Master Settings</span>
+        </div>
         <div style="padding: 1.5rem;">
-          <form id="system-settings-form" class="form-grid">
+          <form id="form-general-settings" class="form-grid">
             <div class="form-group">
-              <label class="form-label">Official Organization Name</label>
+              <label class="form-label">Official Portal & Center Name</label>
               <input type="text" class="form-control" value="Ideal Coaching Center" disabled style="background-color: var(--slate-100);" />
-              <span class="form-help">Locked to official entity name.</span>
             </div>
-
             <div class="form-group">
-              <label class="form-label">Active Academic / Coaching Year <span class="req-star">*</span></label>
+              <label class="form-label">Active Academic Year <span class="req-star">*</span></label>
               <select id="set-academic-year" class="form-control">
                 <option value="2025-2026" ${settings.activeAcademicYear === '2025-2026' ? 'selected' : ''}>2025-2026</option>
                 <option value="2026-2027" ${settings.activeAcademicYear === '2026-2027' ? 'selected' : ''}>2026-2027 (Active Current)</option>
                 <option value="2027-2028" ${settings.activeAcademicYear === '2027-2028' ? 'selected' : ''}>2027-2028 (Upcoming)</option>
               </select>
-              <span class="form-help">Historical records remain permanently preserved across academic years.</span>
             </div>
-
             <div class="form-group">
               <label class="form-label">Coaching Tagline</label>
               <input type="text" id="set-tagline" class="form-control" value="${settings.tagline || 'Excellence in Education'}" />
             </div>
-
             <div class="form-group">
               <label class="form-label">Official Helpline Phone</label>
               <input type="text" id="set-phone" class="form-control" value="${settings.phone || '+92 300 1234567'}" />
             </div>
-
             <div class="form-group form-col-full">
-              <label class="form-label">Coaching Center Address (Appears on Receipts)</label>
-              <input type="text" id="set-address" class="form-control" value="${settings.address || ''}" />
+              <label class="form-label">Campus Physical Address (Appears on Receipts & Reports)</label>
+              <input type="text" id="set-address" class="form-control" value="${settings.address || 'Main Boulevard, Academic Block, Lahore, Pakistan'}" />
             </div>
+          </form>
+        </div>
+      `;
+    }
 
-            <div class="form-col-full" style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
-              <h3 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 0.5rem;">Default Monthly Tuition Fees by Class</h3>
-              <p style="font-size: 0.8rem; color: var(--slate-500); margin-bottom: 1rem;">Used when initializing new 12-month student fee schedules.</p>
-            </div>
-
-            <div class="form-group">
-              <label class="form-label">Class 9th Default Fee (PKR)</label>
-              <input type="number" id="set-fee-9" class="form-control" value="${settings.defaultFee9th || 3000}" />
-            </div>
-
-            <div class="form-group">
-              <label class="form-label">Class 10th Default Fee (PKR)</label>
-              <input type="number" id="set-fee-10" class="form-control" value="${settings.defaultFee10th || 3000}" />
-            </div>
-
-            <div class="form-group">
-              <label class="form-label">Class 11th Default Fee (PKR)</label>
-              <input type="number" id="set-fee-11" class="form-control" value="${settings.defaultFee11th || 3000}" />
-            </div>
-
-            <div class="form-group">
-              <label class="form-label">Class 12th Default Fee (PKR)</label>
-              <input type="number" id="set-fee-12" class="form-control" value="${settings.defaultFee12th || 3000}" />
-            </div>
-
-            <div class="form-col-full" style="margin-top: 1.25rem; padding-top: 1.25rem; border-top: 1px solid var(--border-color);">
-              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 0.5rem;">
-                <div>
-                  <h3 style="font-size: 1.1rem; font-weight: 700;">Late Fee Fine & Penalty Configuration</h3>
-                  <p style="font-size: 0.8rem; color: var(--slate-500);">Configure standard late fee defaults. Full discretion remains with Admin during payment collection to apply, edit, or waive.</p>
-                </div>
-                <span class="badge badge-paid" style="font-size: 0.775rem;">Admin-Controlled System</span>
-              </div>
-            </div>
-
-            <div class="form-group">
-              <label class="form-label">Default Late Fee Fine (PKR)</label>
-              <input type="number" id="set-late-fee-amount" class="form-control" value="${settings.defaultLateFee !== undefined ? settings.defaultLateFee : 200}" min="0" step="50" />
-              <span class="form-help">Standard fine suggested on overdue months (Admin can adjust or waive).</span>
-            </div>
-
-            <div class="form-group">
-              <label class="form-label">Monthly Fee Due Day</label>
-              <input type="number" id="set-fee-due-day" class="form-control" value="${settings.feeDueDay || 10}" min="1" max="28" />
-              <span class="form-help">Due on this day of each month (e.g. 10th of every month).</span>
-            </div>
-
+    if (tab === 'fees') {
+      return `
+        <div class="data-card-header" style="justify-content: space-between;">
+          <h3 class="data-card-title">Fee Settings & Monthly Tuition Baseline</h3>
+          <button type="button" class="btn btn-sm btn-secondary" onclick="window.location.hash='#fees'">Open Fee Management</button>
+        </div>
+        <div style="padding: 1.5rem;">
+          <form id="form-fee-settings" class="form-grid">
+            <div class="form-group"><label class="form-label">Class 9th Default Fee (PKR)</label><input type="number" id="set-fee-9" class="form-control" value="${settings.defaultFee9th || 3000}" /></div>
+            <div class="form-group"><label class="form-label">Class 10th Default Fee (PKR)</label><input type="number" id="set-fee-10" class="form-control" value="${settings.defaultFee10th || 3000}" /></div>
+            <div class="form-group"><label class="form-label">Class 11th Default Fee (PKR)</label><input type="number" id="set-fee-11" class="form-control" value="${settings.defaultFee11th || 3000}" /></div>
+            <div class="form-group"><label class="form-label">Class 12th Default Fee (PKR)</label><input type="number" id="set-fee-12" class="form-control" value="${settings.defaultFee12th || 3000}" /></div>
+            <div class="form-group"><label class="form-label">Monthly Due Day of Month</label><input type="number" id="set-fee-due-day" class="form-control" value="${settings.feeDueDay || 10}" min="1" max="28" /></div>
+            <div class="form-group"><label class="form-label">Default Late Fee Fine (PKR)</label><input type="number" id="set-late-fee-amount" class="form-control" value="${settings.defaultLateFee !== undefined ? settings.defaultLateFee : 200}" min="0" step="50" /></div>
             <div class="form-group form-col-full">
-              <label class="checkbox-label" style="display: flex; align-items: flex-start; gap: 0.75rem; font-size: 0.9rem; cursor: pointer; padding: 0.85rem 1rem; background: var(--slate-50); border-radius: var(--radius-md); border: 1px solid var(--border-color);">
-                <input type="checkbox" id="set-late-fee-enabled" ${settings.lateFeeEnabled !== false ? 'checked' : ''} style="width: 20px; height: 20px; accent-color: var(--primary-600); margin-top: 0.15rem;" />
-                <div>
-                  <strong>Enable Late Fee Fine System in Cashier Counter</strong>
-                  <div style="font-size: 0.8rem; color: var(--slate-500); margin-top: 0.2rem;">
-                    When enabled, the fee collection window automatically calculates and presents the late fee option for overdue months. Admin retains one-click authority to apply or waive the fine on every individual payment.
-                  </div>
-                </div>
+              <label class="checkbox-label" style="display: flex; gap: 0.5rem; cursor: pointer;">
+                <input type="checkbox" id="set-late-fee-enabled" ${settings.lateFeeEnabled !== false ? 'checked' : ''} /> Enable Late Fee Fine calculation during cash counter fee collection
               </label>
             </div>
           </form>
         </div>
-      </div>
-    `;
+      `;
+    }
 
-    container.querySelector('#btn-save-settings').onclick = async () => {
-      const year = container.querySelector('#set-academic-year').value;
-      const tagline = container.querySelector('#set-tagline').value.trim();
-      const phone = container.querySelector('#set-phone').value.trim();
-      const address = container.querySelector('#set-address').value.trim();
-      const f9 = Number(container.querySelector('#set-fee-9').value) || 3000;
-      const f10 = Number(container.querySelector('#set-fee-10').value) || 3000;
-      const f11 = Number(container.querySelector('#set-fee-11').value) || 3000;
-      const f12 = Number(container.querySelector('#set-fee-12').value) || 3000;
-      const defaultLateFee = Number(container.querySelector('#set-late-fee-amount').value) || 0;
-      const feeDueDay = Number(container.querySelector('#set-fee-due-day').value) || 10;
-      const lateFeeEnabled = container.querySelector('#set-late-fee-enabled').checked;
+    if (tab === 'exam') {
+      return `
+        <div class="data-card-header" style="justify-content: space-between;">
+          <h3 class="data-card-title">Examination Settings</h3>
+          <button type="button" class="btn btn-sm btn-primary" onclick="window.location.hash='#examination-fees'">Open Examination Fees Module</button>
+        </div>
+        <div style="padding: 1.5rem;">
+          <p style="font-size: 0.85rem; color: var(--slate-600); margin-bottom: 1.25rem;">
+            Examination fees are maintained completely independently from monthly tuition fees. Click below to manage test sessions and candidate assignments.
+          </p>
+          <div style="display: flex; gap: 1rem;">
+            <button type="button" class="btn btn-primary" onclick="window.location.hash='#examination-fees'">Manage Examination Sessions & Dues</button>
+          </div>
+        </div>
+      `;
+    }
 
-      await window.GlobalLoader.wrap(async () => {
-        await window.FirebaseService.updateDocument('settings', 'global_settings', {
-          activeAcademicYear: year,
-          tagline,
-          phone,
-          address,
-          defaultFee9th: f9,
-          defaultFee10th: f10,
-          defaultFee11th: f11,
-          defaultFee12th: f12,
-          defaultLateFee: defaultLateFee,
-          feeDueDay: feeDueDay,
-          lateFeeEnabled: lateFeeEnabled
-        });
+    if (tab === 'teacher') {
+      return `
+        <div class="data-card-header" style="justify-content: space-between;">
+          <h3 class="data-card-title">Teacher Management Settings</h3>
+          <button type="button" class="btn btn-sm btn-primary" onclick="window.location.hash='#teacher-management'">Open Teacher Directory</button>
+        </div>
+        <div style="padding: 1.5rem;">
+          <p style="font-size: 0.85rem; color: var(--slate-600); margin-bottom: 1.25rem;">
+            Manage teaching faculty, unique teacher IDs (e.g. TCH-101), academic qualifications, subject assignments, and account statuses.
+          </p>
+          <div style="display: flex; gap: 1rem;">
+            <button type="button" class="btn btn-primary" onclick="window.location.hash='#teacher-management'">Go to Teacher Management</button>
+          </div>
+        </div>
+      `;
+    }
 
-        await window.AuditService.log({
-          action: 'System Settings Updated',
-          category: 'System',
-          targetType: 'Settings',
-          targetId: 'global_settings',
-          details: `Updated active academic year to ${year}, fee defaults, and late fee fine policy (PKR ${defaultLateFee}, Due Day: ${feeDueDay}th, Enabled: ${lateFeeEnabled})`
-        });
-      }, 'Writing configuration updates to Firebase...', 'Ideal Coaching Center');
+    if (tab === 'attendance') {
+      return `
+        <div class="data-card-header" style="justify-content: space-between;">
+          <h3 class="data-card-title">Attendance Settings</h3>
+          <button type="button" class="btn btn-sm btn-secondary" onclick="window.location.hash='#attendance'">Open Attendance Register</button>
+        </div>
+        <div style="padding: 1.5rem;">
+          <form class="form-grid">
+            <div class="form-group">
+              <label class="form-label">Institutional Working Days</label>
+              <input type="text" class="form-control" value="Monday to Saturday" disabled style="background: var(--slate-100);" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Sunday Non-Working Day Policy</label>
+              <select id="set-att-sunday" class="form-control">
+                <option value="holiday" selected>Sunday is Official Holiday / Non-Working Day</option>
+                <option value="working">Sunday is Working Day (Special Sessions)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Attendance Warning Threshold (%)</label>
+              <input type="number" id="set-att-threshold" class="form-control" value="75" min="50" max="95" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Gate QR Scan Arrival Window</label>
+              <select id="set-att-window" class="form-control">
+                <option value="full_day">Flexible All-Day Scanning</option>
+                <option value="strict">Strict Morning/Evening Session Timings</option>
+              </select>
+            </div>
+          </form>
+        </div>
+      `;
+    }
 
-      window.UIUtils.showToast('success', 'Settings Saved', 'System settings and late fee policy updated successfully.');
-    };
+    if (tab === 'timetable') {
+      return `
+        <div class="data-card-header" style="justify-content: space-between;">
+          <h3 class="data-card-title">Timetable & Scheduling Settings</h3>
+          <button type="button" class="btn btn-sm btn-primary" onclick="window.location.hash='#timetables'">Open Timetable Module</button>
+        </div>
+        <div style="padding: 1.5rem;">
+          <p style="font-size: 0.85rem; color: var(--slate-600); margin-bottom: 1.25rem;">
+            Automatic conflict detection prevents assigning the same teacher to two overlapping periods or booking the same classroom twice.
+          </p>
+          <div style="display: flex; gap: 1rem;">
+            <button type="button" class="btn btn-primary" onclick="window.location.hash='#timetables'">Manage Timetables & Lectures</button>
+          </div>
+        </div>
+      `;
+    }
+
+    if (tab === 'salary') {
+      return `
+        <div class="data-card-header" style="justify-content: space-between;">
+          <h3 class="data-card-title">Teacher Salary & Payroll Settings</h3>
+          <button type="button" class="btn btn-sm btn-primary" onclick="window.location.hash='#payroll'">Open Payroll Center</button>
+        </div>
+        <div style="padding: 1.5rem;">
+          <p style="font-size: 0.85rem; color: var(--slate-600); margin-bottom: 1.25rem;">
+            Supports fixed monthly salary and per-period arrangements, monthly batch payroll generation, disbursements, and printed salary slips.
+          </p>
+          <div style="display: flex; gap: 1rem;">
+            <button type="button" class="btn btn-primary" onclick="window.location.hash='#payroll'">Go to Teacher Payroll</button>
+          </div>
+        </div>
+      `;
+    }
+
+    if (tab === 'promotions') {
+      return `
+        <div class="data-card-header" style="justify-content: space-between;">
+          <h3 class="data-card-title">Promotion Settings</h3>
+          <button type="button" class="btn btn-sm btn-primary" onclick="window.location.hash='#promotions'">Open Promotion Management</button>
+        </div>
+        <div style="padding: 1.5rem;">
+          <p style="font-size: 0.85rem; color: var(--slate-600); margin-bottom: 1.25rem;">
+            Supports academic progression (9th→10th, 10th→11th, 11th→12th) while permanently archiving historical records.
+          </p>
+          <div style="display: flex; gap: 1rem;">
+            <button type="button" class="btn btn-primary" onclick="window.location.hash='#promotions'">Launch Promotion Workflow</button>
+          </div>
+        </div>
+      `;
+    }
+
+    if (tab === 'approvals') {
+      return `
+        <div class="data-card-header" style="justify-content: space-between;">
+          <h3 class="data-card-title">Approval Workflows</h3>
+          <button type="button" class="btn btn-sm btn-primary" onclick="window.location.hash='#approvals'">Open Approvals Dashboard</button>
+        </div>
+        <div style="padding: 1.5rem;">
+          <p style="font-size: 0.85rem; color: var(--slate-600); margin-bottom: 1.25rem;">
+            Super Admin authorization for pending fee refunds, payment amount corrections, and attendance adjustments.
+          </p>
+          <div style="display: flex; gap: 1rem;">
+            <button type="button" class="btn btn-primary" onclick="window.location.hash='#approvals'">Review Pending Requests</button>
+          </div>
+        </div>
+      `;
+    }
+
+    if (tab === 'receipt') {
+      return `
+        <div class="data-card-header" style="justify-content: space-between;">
+          <h3 class="data-card-title">Receipt Customization</h3>
+          <button type="button" class="btn btn-sm btn-primary" onclick="window.location.hash='#receipt-customizer'">Launch Full Receipt Editor</button>
+        </div>
+        <div style="padding: 1.5rem;">
+          <p style="font-size: 0.85rem; color: var(--slate-600); margin-bottom: 1.25rem;">
+            Customize institutional heading, logo, signature labels, print layout (Single, 2-Copy A4, 80mm Thermal), and 16 display toggles with real-time WYSIWYG preview.
+          </p>
+          <div style="display: flex; gap: 1rem;">
+            <button type="button" class="btn btn-primary" onclick="window.location.hash='#receipt-customizer'">Open Live Receipt Customizer</button>
+          </div>
+        </div>
+      `;
+    }
+
+    if (tab === 'qr') {
+      return `
+        <div class="data-card-header" style="justify-content: space-between;">
+          <h3 class="data-card-title">QR Attendance Terminal Settings</h3>
+          <button type="button" class="btn btn-sm btn-primary" onclick="window.location.hash='#qr-attendance'">Open Gate Scanner</button>
+        </div>
+        <div style="padding: 1.5rem;">
+          <p style="font-size: 0.85rem; color: var(--slate-600); margin-bottom: 1.25rem;">
+            Manage attendance cards, barcode/QR token salts, audio feedback, duplicate scan prevention, and manual fallback rules.
+          </p>
+          <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+            <button type="button" class="btn btn-primary" onclick="window.location.hash='#qr-attendance'">Launch QR Gate Scanner</button>
+            <button type="button" class="btn btn-secondary" onclick="window.location.hash='#attendance-cards'">Manage Attendance Cards</button>
+          </div>
+        </div>
+      `;
+    }
+
+    if (tab === 'data') {
+      return `
+        <div class="data-card-header">
+          <h3 class="data-card-title">Data Management & Cloud Synchronization</h3>
+          <span class="badge badge-paid">Cloud Firestore</span>
+        </div>
+        <div style="padding: 1.5rem;">
+          <p style="font-size: 0.85rem; color: var(--slate-600); margin-bottom: 1.25rem;">
+            Manage database backups, real-time sync with Cloud Firestore, and local offline cache synchronization.
+          </p>
+          <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+            <button type="button" class="btn btn-primary" id="btn-sync-cloud-db">
+              Synchronize All Records to Cloud Firestore
+            </button>
+            <button type="button" class="btn btn-secondary" id="btn-export-backup-json">
+              Export Full Database Backup (JSON)
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    return '';
+  },
+
+  attachSettingsEvents(container, settings, activeTab) {
+    // Tab switching
+    container.querySelectorAll('.btn-setting-tab').forEach(btn => {
+      btn.onclick = () => {
+        const tab = btn.getAttribute('data-tab');
+        this.renderSystemSettings(container, tab);
+      };
+    });
+
+    // Save Settings
+    const btnSave = container.querySelector('#btn-save-settings');
+    if (btnSave) {
+      btnSave.onclick = async () => {
+        const updates = {};
+        const yearEl = container.querySelector('#set-academic-year');
+        if (yearEl) updates.activeAcademicYear = yearEl.value;
+        const tagEl = container.querySelector('#set-tagline');
+        if (tagEl) updates.tagline = tagEl.value.trim();
+        const phEl = container.querySelector('#set-phone');
+        if (phEl) updates.phone = phEl.value.trim();
+        const addrEl = container.querySelector('#set-address');
+        if (addrEl) updates.address = addrEl.value.trim();
+
+        const f9 = container.querySelector('#set-fee-9');
+        if (f9) updates.defaultFee9th = Number(f9.value) || 3000;
+        const f10 = container.querySelector('#set-fee-10');
+        if (f10) updates.defaultFee10th = Number(f10.value) || 3000;
+        const f11 = container.querySelector('#set-fee-11');
+        if (f11) updates.defaultFee11th = Number(f11.value) || 3000;
+        const f12 = container.querySelector('#set-fee-12');
+        if (f12) updates.defaultFee12th = Number(f12.value) || 3000;
+        const dueEl = container.querySelector('#set-fee-due-day');
+        if (dueEl) updates.feeDueDay = Number(dueEl.value) || 10;
+        const lateEl = container.querySelector('#set-late-fee-amount');
+        if (lateEl) updates.defaultLateFee = Number(lateEl.value) || 0;
+        const lateChk = container.querySelector('#set-late-fee-enabled');
+        if (lateChk) updates.lateFeeEnabled = lateChk.checked;
+
+        await window.GlobalLoader.wrap(async () => {
+          await window.FirebaseService.updateDocument('settings', 'global_settings', updates);
+          await window.AuditService.log({
+            action: 'System Settings Updated',
+            category: 'Settings',
+            targetType: 'GlobalSettings',
+            targetId: 'global_settings',
+            details: `Updated institutional system settings in section '${activeTab}'`
+          });
+        }, 'Writing updated settings to Cloud Firestore...', 'Ideal Coaching Center');
+
+        window.UIUtils.showToast('success', 'Settings Saved', 'System configuration updated successfully.');
+        this.renderSystemSettings(container, activeTab);
+      };
+    }
+
+    // Cancel Settings
+    const btnCancel = container.querySelector('#btn-cancel-settings');
+    if (btnCancel) {
+      btnCancel.onclick = () => {
+        this.renderSystemSettings(container, activeTab);
+      };
+    }
+
+    // Cloud sync in Data tab
+    const btnSync = container.querySelector('#btn-sync-cloud-db');
+    if (btnSync) {
+      btnSync.onclick = async () => {
+        await window.GlobalLoader.wrap(async () => {
+          await window.FirebaseService.syncAllLocalDataToCloud();
+        }, 'Synchronizing all records to Cloud Firestore...', 'Ideal Coaching Center');
+        window.UIUtils.showToast('success', 'Sync Completed', 'All records uploaded to Cloud Firestore.');
+      };
+    }
+
+    // Export JSON Backup
+    const btnBackup = container.querySelector('#btn-export-backup-json');
+    if (btnBackup) {
+      btnBackup.onclick = () => {
+        const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(window.FirebaseService.mockData, null, 2));
+        const a = document.createElement('a');
+        a.href = dataStr;
+        a.download = `ideal_coaching_center_backup_${new Date().toISOString().split('T')[0]}.json`;
+        a.click();
+      };
+    }
   },
 
   /**

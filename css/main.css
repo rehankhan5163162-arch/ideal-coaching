@@ -286,6 +286,12 @@ a:hover {
   border: 1px solid rgba(16, 185, 129, 0.3);
 }
 
+.role-teacher {
+  background-color: rgba(168, 85, 247, 0.2);
+  color: #d8b4fe;
+  border: 1px solid rgba(168, 85, 247, 0.35);
+}
+
 /* Sidebar Navigation Items */
 .sidebar-nav {
   padding: 0.85rem 1rem 2rem;

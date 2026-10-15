@@ -211,11 +211,6 @@ const AdminView = {
               <input type="tel" id="std-input-contact" class="form-control" placeholder="0300-1234567" required />
             </div>
 
-            <div class="form-group">
-              <label class="form-label" for="std-input-whatsapp">Parent / Guardian WhatsApp Number</label>
-              <input type="tel" id="std-input-whatsapp" class="form-control" placeholder="0300-1234567 (Leave blank to use Contact Number)" />
-              <span class="form-help">Used for automated WhatsApp attendance & fee alerts. Defaults to Contact Number if empty.</span>
-            </div>
 
             <div class="form-group">
               <label class="form-label" for="std-input-class">Class <span class="req-star">*</span></label>
@@ -349,16 +344,12 @@ const AdminView = {
       // Process creation under the strict 5-second minimum loader
       await window.GlobalLoader.wrap(async () => {
         const studentId = `std_${Date.now()}`;
-        const whatsappInput = container.querySelector('#std-input-whatsapp');
-        const parentWhatsApp = (whatsappInput && whatsappInput.value.trim()) ? whatsappInput.value.trim() : contact;
-
         const newStudent = {
           id: studentId,
           rollNumber: roll,
           fullName: name,
           fatherName: father,
           contactNumber: contact,
-          parentWhatsApp: parentWhatsApp,
           email: email,
           password: password,
           credentialPin: password,
@@ -384,16 +375,7 @@ const AdminView = {
           details: `Enrolled student ${name} (Roll #${roll}) into ${studentClass} (${group}) and initialized 12-month schedule.`
         });
 
-        // Asynchronous non-blocking WhatsApp Admission Welcome Notification
-        if (window.WhatsAppService && typeof window.WhatsAppService.notifyAdmission === 'function') {
-          try {
-            window.WhatsAppService.notifyAdmission(newStudent).catch(err => {
-              console.warn('⚠️ WhatsApp admission notification note:', err);
-            });
-          } catch (waErr) {
-            console.warn('⚠️ WhatsApp admission hook skipped:', waErr);
-          }
-        }
+
       }, 'Saving student & initializing 12-month academic fee schedule...', 'Ideal Coaching Center');
 
       if (window.FirebaseService.cloudStatus === 'online') {
@@ -718,11 +700,6 @@ const AdminView = {
               <input type="tel" id="edit-std-contact" class="form-control" value="${student.contactNumber}" required />
             </div>
 
-            <div class="form-group">
-              <label class="form-label">Parent WhatsApp Number</label>
-              <input type="tel" id="edit-std-whatsapp" class="form-control" value="${student.parentWhatsApp || student.contactNumber || ''}" placeholder="0300-1234567" />
-              <span class="form-help">Leave blank to use primary contact number.</span>
-            </div>
 
             <div class="form-group">
               <label class="form-label">Class</label>
@@ -812,9 +789,6 @@ const AdminView = {
         }
       }
 
-      const editWaInput = modal.querySelector('#edit-std-whatsapp');
-      const editWhatsApp = (editWaInput && editWaInput.value.trim()) ? editWaInput.value.trim() : contact;
-
       window.UIUtils.closeModal('edit-student-modal');
 
       await window.GlobalLoader.wrap(async () => {
@@ -823,7 +797,6 @@ const AdminView = {
           fatherName: father,
           rollNumber: roll,
           contactNumber: contact,
-          parentWhatsApp: editWhatsApp,
           email: sEmail,
           password: sPassword,
           credentialPin: sPassword,

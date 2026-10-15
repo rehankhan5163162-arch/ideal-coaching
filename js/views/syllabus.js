@@ -192,11 +192,15 @@ const SyllabusView = {
 
     // Delete Book buttons
     container.querySelectorAll('.btn-delete-book').forEach(btn => {
-      btn.onclick = async () => {
+      btn.onclick = async (e) => {
+        if (e) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
         const bookId = btn.getAttribute('data-book-id');
         const confirmed = await window.UIUtils.confirm({
           title: 'Delete Book / Subject',
-          message: 'Are you sure you want to delete this book and its chapters from the syllabus?',
+          message: 'Are you sure you want to delete this book and all its chapters from the syllabus?',
           confirmText: 'Yes, Delete Book',
           cancelText: 'Cancel',
           type: 'danger'
@@ -204,25 +208,39 @@ const SyllabusView = {
 
         if (confirmed) {
           await window.GlobalLoader.wrap(async () => {
-            await window.FirebaseService.deleteDocument('books', bookId);
-            // Delete child chapters
+            // Delete child chapters first
             const allChapters = await window.FirebaseService.getCollection('chapters');
             for (const ch of allChapters) {
-              if (ch.bookId === bookId) {
+              if (String(ch.bookId) === String(bookId)) {
                 await window.FirebaseService.deleteDocument('chapters', ch.id);
               }
+            }
+            await window.FirebaseService.deleteDocument('books', bookId);
+
+            if (window.AuditService && typeof window.AuditService.log === 'function') {
+              await window.AuditService.log({
+                action: 'Syllabus Book Deleted',
+                category: 'Academic',
+                targetType: 'Book',
+                targetId: bookId,
+                details: `Deleted book ${bookId} and its associated chapters`
+              });
             }
           }, 'Removing book from syllabus...', 'Ideal Coaching Center');
 
           window.UIUtils.showToast('info', 'Book Deleted', 'The book and chapters have been removed.');
-          this.render(container);
+          await this.render(container);
         }
       };
     });
 
     // Delete Chapter buttons
     container.querySelectorAll('.btn-delete-chapter').forEach(btn => {
-      btn.onclick = async () => {
+      btn.onclick = async (e) => {
+        if (e) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
         const chId = btn.getAttribute('data-chapter-id');
         const confirmed = await window.UIUtils.confirm({
           title: 'Delete Chapter',
@@ -235,8 +253,20 @@ const SyllabusView = {
         if (confirmed) {
           await window.GlobalLoader.wrap(async () => {
             await window.FirebaseService.deleteDocument('chapters', chId);
+
+            if (window.AuditService && typeof window.AuditService.log === 'function') {
+              await window.AuditService.log({
+                action: 'Syllabus Chapter Deleted',
+                category: 'Academic',
+                targetType: 'Chapter',
+                targetId: chId,
+                details: `Deleted chapter ${chId}`
+              });
+            }
           }, 'Removing chapter...', 'Ideal Coaching Center');
-          this.render(container);
+
+          window.UIUtils.showToast('info', 'Chapter Deleted', 'The chapter has been removed from the syllabus.');
+          await this.render(container);
         }
       };
     });
@@ -276,7 +306,7 @@ const SyllabusView = {
         }, 'Updating chapter status in Firebase...', 'Ideal Coaching Center');
 
         window.UIUtils.showToast('success', 'Status Updated', `Chapter marked as "${newStatus}".`);
-        this.render(container);
+        await this.render(container);
       };
     });
   },
@@ -351,7 +381,7 @@ const SyllabusView = {
       }, 'Saving book to syllabus...', 'Ideal Coaching Center');
 
       window.UIUtils.showToast('success', 'Book Added', `"${title}" has been added to the syllabus.`);
-      this.render(container);
+      await this.render(container);
     };
   },
 
@@ -441,7 +471,7 @@ const SyllabusView = {
       }, 'Saving chapter to syllabus...', 'Ideal Coaching Center');
 
       window.UIUtils.showToast('success', 'Chapter Added', `Chapter ${order}: "${title}" added.`);
-      this.render(container);
+      await this.render(container);
     };
   }
 };

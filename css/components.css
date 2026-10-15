@@ -866,46 +866,72 @@ textarea.form-control {
 .table-responsive {
   width: 100%;
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: var(--radius-md);
 }
 
-.app-table {
+.app-table,
+.data-table {
   width: 100%;
   border-collapse: collapse;
   text-align: left;
-  font-size: 0.85rem;
+  font-size: 0.875rem;
+  background-color: #ffffff;
 }
 
-.app-table th {
-  background: var(--slate-50);
-  padding: 0.85rem 1.15rem;
-  font-size: 0.725rem;
+.app-table th,
+.data-table th {
+  background: #f1f5f9 !important;
+  padding: 0.9rem 1.15rem;
+  font-size: 0.775rem;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--slate-500);
-  font-weight: 700;
-  border-bottom: 1px solid var(--border-color);
+  letter-spacing: 0.05em;
+  color: #0f172a !important; /* Deep dark crisp text for high readability */
+  font-weight: 800;
+  border-top: 1px solid #e2e8f0;
+  border-bottom: 2px solid #cbd5e1;
   white-space: nowrap;
-}
-
-.app-table td {
-  padding: 0.95rem 1.15rem;
-  border-bottom: 1px solid var(--border-color-subtle);
-  color: var(--slate-800);
   vertical-align: middle;
 }
 
-.app-table tbody tr {
+.app-table td,
+.data-table td {
+  padding: 0.95rem 1.15rem;
+  border-bottom: 1px solid #e2e8f0;
+  color: #0f172a !important; /* High contrast dark text on white cells */
+  font-weight: 500;
+  vertical-align: middle;
+  background-color: #ffffff;
+}
+
+.app-table tbody tr,
+.data-table tbody tr {
   transition: background-color var(--transition-fast);
 }
 
-.app-table tbody tr:hover {
-  background-color: #f8fafc;
+.app-table tbody tr:hover td,
+.data-table tbody tr:hover td {
+  background-color: #f8fafc !important;
+}
+
+.app-table td strong,
+.data-table td strong {
+  color: #0f172a !important;
+  font-weight: 700;
+}
+
+.app-table td small,
+.data-table td small,
+.app-table td .subtext,
+.data-table td .subtext {
+  color: #334155 !important; /* Slate-700 instead of faint light grey */
+  font-weight: 500;
 }
 
 .table-empty-state {
   padding: 3rem 1.5rem;
   text-align: center;
-  color: var(--slate-500);
+  color: #1e293b;
 }
 
 .empty-state-icon {
@@ -1010,8 +1036,45 @@ textarea.form-control {
 
 .badge-inactive {
   background-color: var(--slate-100);
-  color: var(--slate-600);
-  border: 1px solid var(--slate-200);
+  color: var(--slate-700);
+  border: 1px solid var(--slate-300);
+}
+
+.badge-unpaid,
+.badge-danger {
+  background-color: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+  font-weight: 700;
+}
+
+.badge-warning {
+  background-color: #fffbeb;
+  color: #b45309;
+  border: 1px solid #fde68a;
+  font-weight: 700;
+}
+
+.badge-cancelled,
+.badge-rejected {
+  background-color: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fca5a5;
+  font-weight: 700;
+}
+
+.badge-approved {
+  background-color: #f0fdf4;
+  color: #15803d;
+  border: 1px solid #86efac;
+  font-weight: 700;
+}
+
+.badge-info {
+  background-color: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+  font-weight: 700;
 }
 
 /* --------------------------------------------------------------------------
@@ -1546,7 +1609,7 @@ textarea.form-control {
   }
 }
 
-/* Security & UI Guard: Cloud Sync button, status dot, and warning banner strictly hidden from students */
+/* Security & UI Guard: Cloud Sync button, status dot, and warning banner strictly hidden from students and teachers */
 body.role-student #btn-cloud-sync,
 body.role-student #cloud-warning-banner,
 body.role-student .header-cloud-btn,
@@ -1557,7 +1620,18 @@ body.role-student .cloud-sync-banner,
 .role-student #btn-cloud-sync,
 .role-student #cloud-warning-banner,
 .role-student .header-cloud-btn,
-.role-student #modal-cloud-sync-assistant {
+.role-student #modal-cloud-sync-assistant,
+body.role-teacher #btn-cloud-sync,
+body.role-teacher #cloud-warning-banner,
+body.role-teacher .header-cloud-btn,
+body.role-teacher #modal-cloud-sync-assistant,
+body.role-teacher .cloud-status-dot,
+body.role-teacher .cloud-status-text,
+body.role-teacher .cloud-sync-banner,
+.role-teacher #btn-cloud-sync,
+.role-teacher #cloud-warning-banner,
+.role-teacher .header-cloud-btn,
+.role-teacher #modal-cloud-sync-assistant {
   display: none !important;
   visibility: hidden !important;
   opacity: 0 !important;
@@ -1567,6 +1641,77 @@ body.role-student .cloud-sync-banner,
   margin: 0 !important;
   padding: 0 !important;
   border: none !important;
+}
+
+/* --------------------------------------------------------------------------
+   8. QR SCANNER, ATTENDANCE CARDS & TIMETABLE GRID ENHANCEMENTS
+   -------------------------------------------------------------------------- */
+.scanner-scan-line,
+.full-scanner-scan-line {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, transparent 5%, #10b981 50%, transparent 95%);
+  box-shadow: 0 0 16px #10b981, 0 0 28px rgba(16, 185, 129, 0.6);
+  animation: qrFullScannerScan 2.5s ease-in-out infinite alternate;
+  pointer-events: none;
+  z-index: 4;
+}
+
+@keyframes qrFullScannerScan {
+  0% { top: 2%; opacity: 0.7; }
+  50% { opacity: 1; }
+  100% { top: 97%; opacity: 0.7; }
+}
+
+@keyframes qrScannerScan {
+  0% { top: 5%; }
+  100% { top: 95%; }
+}
+
+.scanner-corner,
+.scanner-viewport-corner {
+  position: absolute;
+  width: 28px;
+  height: 28px;
+  border-color: #10b981;
+  border-style: solid;
+  pointer-events: none;
+  z-index: 4;
+  opacity: 0.85;
+}
+
+.scanner-corner-tl, .scanner-viewport-corner-tl { top: 12px; left: 12px; border-width: 3px 0 0 3px; border-top-left-radius: 6px; }
+.scanner-corner-tr, .scanner-viewport-corner-tr { top: 12px; right: 12px; border-width: 3px 3px 0 0; border-top-right-radius: 6px; }
+.scanner-corner-bl, .scanner-viewport-corner-bl { bottom: 12px; left: 12px; border-width: 0 0 3px 3px; border-bottom-left-radius: 6px; }
+.scanner-corner-br, .scanner-viewport-corner-br { bottom: 12px; right: 12px; border-width: 0 3px 3px 0; border-bottom-right-radius: 6px; }
+
+.attendance-card-wrapper:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-lg);
+}
+
+.timetable-period-chip {
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.timetable-period-chip:hover {
+  transform: scale(1.02);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+}
+
+.session-tab-card:hover {
+  border-color: var(--primary-400);
+}
+
+.active-session-card {
+  box-shadow: 0 0 0 1px var(--primary-600);
+}
+
+.active-tab {
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.35);
 }
 
 

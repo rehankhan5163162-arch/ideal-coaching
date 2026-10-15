@@ -16,7 +16,7 @@ class GlobalLoadingManager {
     this.activeCount = 0;
     this.startTime = null;
     this.progressInterval = null;
-    this.defaultDuration = 1600; // Fast & snappy (Strictly capped under 2000ms)
+    this.defaultDuration = 350; // Snappy, fluid micro-animation duration for seamless responsive UX
     this.init();
   }
 
@@ -101,15 +101,14 @@ class GlobalLoadingManager {
   }
 
   /**
-   * Show loader with specific message, title, and target duration (strictly capped at 2 seconds)
+   * Show loader with specific message, title, and target duration
    */
-  show(message = 'Please wait...', title = 'Ideal Coaching Center', targetDuration = 1600) {
+  show(message = 'Please wait...', title = 'Ideal Coaching Center', targetDuration = 350) {
     this.init();
     this.resetVisuals();
     this.activeCount++;
 
-    // Clamp duration to max 2000ms (2 seconds)
-    const clampedDuration = Math.min(2000, Math.max(200, targetDuration));
+    const clampedDuration = Math.max(150, targetDuration);
 
     if (this.titleEl) this.titleEl.textContent = title;
     if (this.messageEl) this.messageEl.textContent = message;
@@ -123,9 +122,9 @@ class GlobalLoadingManager {
   }
 
   /**
-   * Smoothly animates progress bar and telemetry counter up to 2000ms max
+   * Smoothly animates progress bar and telemetry counter
    */
-  startProgressBar(duration = 1600) {
+  startProgressBar(duration = 350) {
     if (this.progressInterval) clearInterval(this.progressInterval);
     if (!this.progressFillEl) return;
 
@@ -146,7 +145,7 @@ class GlobalLoadingManager {
         if (this.percentEl) this.percentEl.textContent = '100%';
         clearInterval(this.progressInterval);
       }
-    }, 25);
+    }, 20);
   }
 
   /**
@@ -166,8 +165,8 @@ class GlobalLoadingManager {
       this.percentEl.textContent = '100%';
     }
 
-    // Brief instant micro-delay so user sees 100% completion before smooth fade
-    await new Promise(resolve => setTimeout(resolve, 80));
+    // Brief instant micro-delay so user sees smooth completion before fade
+    await new Promise(resolve => setTimeout(resolve, 60));
 
     if (this.progressInterval) {
       clearInterval(this.progressInterval);
@@ -184,18 +183,15 @@ class GlobalLoadingManager {
 
   /**
    * Wraps an async operation with the loader.
-   * Total wait is capped strictly at 2.0 seconds maximum.
-   * If the operation takes time naturally (e.g. heavy cloud write), it will only take the natural time.
-   * If the operation is fast, it resolves smoothly within 1.2s - 1.8s without annoying 5-second stalls.
+   * Runs fluidly without artificial multi-second hanging delays.
    */
-  async wrap(asyncFn, message = 'Processing request...', title = 'Ideal Coaching Center', targetDuration = 1600) {
+  async wrap(asyncFn, message = 'Processing request...', title = 'Ideal Coaching Center', targetDuration = 350) {
     // If loader is already actively running (nested call), execute directly without stacking extra delay
     if (this.overlay && this.overlay.classList.contains('active') && this.startTime) {
       return await (typeof asyncFn === 'function' ? asyncFn() : asyncFn);
     }
 
-    // Capped strictly at 2000ms max
-    const duration = Math.min(2000, Math.max(200, targetDuration));
+    const duration = Math.max(150, targetDuration);
     this.show(message, title, duration);
     const startOpTime = Date.now();
 
@@ -203,9 +199,9 @@ class GlobalLoadingManager {
       // Execute the actual asynchronous operation
       const result = await (typeof asyncFn === 'function' ? asyncFn() : asyncFn);
 
-      // Fast display pacing (strictly capped at 2000ms max)
+      // Brief fluid pacing so the animation feels silky smooth and never jarring
       const elapsed = Date.now() - startOpTime;
-      const waitRemaining = Math.max(0, duration - elapsed);
+      const waitRemaining = Math.min(250, Math.max(0, duration - elapsed));
 
       if (waitRemaining > 0) {
         await new Promise(resolve => setTimeout(resolve, waitRemaining));
@@ -215,14 +211,7 @@ class GlobalLoadingManager {
       return result;
     } catch (error) {
       console.error('Operation error during loader:', error);
-      const elapsed = Date.now() - startOpTime;
-      const waitRemaining = Math.max(0, duration - elapsed);
-      if (waitRemaining > 0) {
-        await new Promise(resolve => setTimeout(resolve, waitRemaining));
-      }
-
-      // Convert loader to friendly error state with Try Again button
-      this.showErrorState(error, asyncFn, message, title);
+      await this.hide(true);
       throw error;
     }
   }

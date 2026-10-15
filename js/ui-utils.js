@@ -97,6 +97,53 @@ const UIUtils = {
   },
 
   /**
+   * Dynamically construct and open modal dialog
+   */
+  showModal(title, bodyContent, actionsContent = null, size = 'modal-md', customId = null) {
+    const id = customId || `dynamic-modal-${Date.now()}`;
+    let modal = document.getElementById(id);
+    if (!modal) {
+      modal = document.createElement('div');
+      modal.id = id;
+      modal.className = 'modal-overlay';
+      document.body.appendChild(modal);
+    }
+
+    modal.innerHTML = `
+      <div class="modal-dialog ${size}">
+        <div class="modal-header">
+          <div class="modal-title-group">
+            <h3 class="modal-title">${title}</h3>
+          </div>
+          <button type="button" class="modal-close-btn" aria-label="Close dialog">&times;</button>
+        </div>
+        <div class="modal-body">
+          ${bodyContent}
+        </div>
+        ${actionsContent ? `
+          <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 0.75rem; flex-wrap: wrap;">
+            ${actionsContent}
+          </div>
+        ` : ''}
+      </div>
+    `;
+
+    // Hook up close button
+    const closeBtn = modal.querySelector('.modal-close-btn');
+    if (closeBtn) {
+      closeBtn.onclick = () => this.closeModal(id);
+    }
+
+    // Close on backdrop click (outside dialog)
+    modal.onclick = (e) => {
+      if (e.target === modal) this.closeModal(id);
+    };
+
+    this.openModal(id);
+    return modal;
+  },
+
+  /**
    * Professional confirmation modal dialog
    */
   confirm({

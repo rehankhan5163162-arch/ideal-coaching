@@ -848,65 +848,317 @@ const StudentPortalView = {
       const student = await window.FirebaseService.getDocument('students', studentUser.studentId || studentUser.id);
       if (!student) return;
 
+      const cards = await window.FirebaseService.getCollection('attendance_cards');
+      const card = (cards || []).find(c => c.personId === student.id && c.personType === 'student') || {
+        token: `ICC-STD-${student.rollNumber}-${student.id}`,
+        status: 'Active',
+        issuedAt: new Date().toISOString()
+      };
+
+      const qrSvg = window.QRCodeGenerator ? window.QRCodeGenerator.generateSVG(card.token, 130) : '';
+
       container.innerHTML = `
-        <div class="data-card" style="max-width: 720px; margin: 0 auto;">
-          <div class="data-card-header">
-            <div class="data-card-title-group">
-              <h2 class="data-card-title">My Student Profile</h2>
-              <span class="data-card-subtitle">Ideal Coaching Center Official Academic Record</span>
-            </div>
-          </div>
+        <div style="max-width: 960px; margin: 0 auto; display: flex; flex-direction: column; gap: 1.75rem;">
+          
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 1.5rem; align-items: start;">
+            
+            <!-- Student Profile Information Card -->
+            <div class="data-card" style="margin-bottom: 0;">
+              <div class="data-card-header">
+                <div class="data-card-title-group">
+                  <h2 class="data-card-title">My Student Profile</h2>
+                  <span class="data-card-subtitle">Ideal Coaching Center Official Academic Record</span>
+                </div>
+              </div>
 
-          <div style="padding: 2rem;">
-            <div style="display: flex; align-items: center; gap: 1.5rem; margin-bottom: 2rem; padding-bottom: 1.5rem; border-bottom: 1px solid var(--border-color);">
-              <div class="user-avatar" style="width: 64px; height: 64px; font-size: 1.5rem;">
-                ${student.fullName.charAt(0)}
-              </div>
-              <div>
-                <h2 style="font-size: 1.4rem;">${student.fullName}</h2>
-                <p style="color: var(--slate-600); font-size: 0.85rem;">Roll Number: <strong style="color: var(--primary-700);">#${student.rollNumber}</strong> • Class ${student.class} (${student.group})</p>
+              <div style="padding: 1.75rem;">
+                <div style="display: flex; align-items: center; gap: 1.25rem; margin-bottom: 1.5rem; padding-bottom: 1.25rem; border-bottom: 1px solid var(--border-color);">
+                  <div class="user-avatar" style="width: 64px; height: 64px; font-size: 1.5rem; background: var(--primary-700); color: #fff;">
+                    ${(student.fullName || 'S').charAt(0)}
+                  </div>
+                  <div>
+                    <h2 style="font-size: 1.35rem; font-weight: 800; color: #0f172a; margin: 0 0 0.25rem 0;">${student.fullName}</h2>
+                    <p style="color: var(--slate-600); font-size: 0.85rem; margin: 0;">
+                      Roll Number: <strong style="color: var(--primary-700); font-family: monospace;">#${student.rollNumber}</strong> • Class ${student.class} (${student.group})
+                    </p>
+                  </div>
+                </div>
+
+                <div class="profile-info-grid" style="grid-template-columns: 1fr 1fr; gap: 1rem;">
+                  <div class="profile-info-item">
+                    <span class="profile-info-label" style="font-weight: 600; color: var(--slate-500); font-size: 0.75rem;">Father's Name</span>
+                    <span class="profile-info-val" style="font-weight: 700; color: #0f172a; font-size: 0.9rem;">${student.fatherName || 'N/A'}</span>
+                  </div>
+                  <div class="profile-info-item">
+                    <span class="profile-info-label" style="font-weight: 600; color: var(--slate-500); font-size: 0.75rem;">Contact Phone</span>
+                    <span class="profile-info-val" style="font-weight: 700; color: #0f172a; font-size: 0.9rem;">${student.contactNumber || 'N/A'}</span>
+                  </div>
+                  <div class="profile-info-item">
+                    <span class="profile-info-label" style="font-weight: 600; color: var(--slate-500); font-size: 0.75rem;">Enrolled Class</span>
+                    <span class="profile-info-val" style="font-weight: 700; color: #0f172a; font-size: 0.9rem;">Class ${student.class}</span>
+                  </div>
+                  <div class="profile-info-item">
+                    <span class="profile-info-label" style="font-weight: 600; color: var(--slate-500); font-size: 0.75rem;">Stream / Group</span>
+                    <span class="profile-info-val" style="font-weight: 700; color: #0f172a; font-size: 0.9rem;">${student.group || 'General'}</span>
+                  </div>
+                  <div class="profile-info-item">
+                    <span class="profile-info-label" style="font-weight: 600; color: var(--slate-500); font-size: 0.75rem;">Enrollment Date</span>
+                    <span class="profile-info-val" style="font-weight: 700; color: #0f172a; font-size: 0.9rem;">${window.UIUtils ? window.UIUtils.formatDate(student.admissionDate || student.createdAt) : (student.admissionDate || 'N/A')}</span>
+                  </div>
+                  <div class="profile-info-item">
+                    <span class="profile-info-label" style="font-weight: 600; color: var(--slate-500); font-size: 0.75rem;">Portal Login Email</span>
+                    <span class="profile-info-val" style="font-weight: 700; color: #0f172a; font-size: 0.85rem; word-break: break-all;">${student.email || ('student' + student.rollNumber + '@ideal.edu')}</span>
+                  </div>
+                  <div class="profile-info-item" style="grid-column: span 2;">
+                    <span class="profile-info-label" style="font-weight: 600; color: var(--slate-500); font-size: 0.75rem;">Account Status</span>
+                    <span class="badge ${student.status === 'Active' ? 'badge-active' : 'badge-inactive'}" style="width: fit-content; font-weight: 700;">${student.status || 'Active'}</span>
+                  </div>
+                </div>
+
+                <div style="margin-top: 1.5rem; padding-top: 1.25rem; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 0.5rem; flex-wrap: wrap;">
+                  <a href="#student-fees" class="btn btn-secondary btn-sm" style="font-weight: 600;">
+                    View Fee Receipts
+                  </a>
+                  <a href="#student-attendance" class="btn btn-secondary btn-sm" style="font-weight: 600;">
+                    Attendance Record
+                  </a>
+                </div>
               </div>
             </div>
 
-            <div class="profile-info-grid">
-              <div class="profile-info-item">
-                <span class="profile-info-label">Father's Name</span>
-                <span class="profile-info-val">${student.fatherName}</span>
+            <!-- Official Student QR Attendance ID Card -->
+            <div class="data-card" style="margin-bottom: 0; overflow: hidden; border: 2px solid #0284c7; box-shadow: var(--shadow-md);">
+              <div style="background: linear-gradient(135deg, #0284c7 0%, #0f172a 100%); color: #ffffff; padding: 1.25rem; display: flex; align-items: center; justify-content: space-between;">
+                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                  <div style="width: 32px; height: 32px; background: rgba(255,255,255,0.2); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 0.85rem;">
+                    ICC
+                  </div>
+                  <div>
+                    <div style="font-size: 0.9rem; font-weight: 800; letter-spacing: 0.5px;">IDEAL COACHING CENTER</div>
+                    <div style="font-size: 0.72rem; color: #bae6fd; font-weight: 600;">STUDENT GATE PASS BADGE</div>
+                  </div>
+                </div>
+                <span class="badge" style="background: rgba(255,255,255,0.25); color: #fff; font-size: 0.72rem; font-weight: 700;">
+                  Class ${student.class}
+                </span>
               </div>
-              <div class="profile-info-item">
-                <span class="profile-info-label">Contact Phone</span>
-                <span class="profile-info-val">${student.contactNumber}</span>
-              </div>
-              <div class="profile-info-item">
-                <span class="profile-info-label">Enrolled Class</span>
-                <span class="profile-info-val">Class ${student.class}</span>
-              </div>
-              <div class="profile-info-item">
-                <span class="profile-info-label">Stream / Group</span>
-                <span class="profile-info-val">${student.group}</span>
-              </div>
-              <div class="profile-info-item">
-                <span class="profile-info-label">Enrollment Date</span>
-                <span class="profile-info-val">${window.UIUtils.formatDate(student.admissionDate || student.createdAt)}</span>
-              </div>
-              <div class="profile-info-item">
-                <span class="profile-info-label">Portal Login Email</span>
-                <span class="profile-info-val">${student.email || ('student' + student.rollNumber + '@ideal.edu')}</span>
-              </div>
-              <div class="profile-info-item">
-                <span class="profile-info-label">Account Status</span>
-                <span class="badge ${student.status === 'Active' ? 'badge-active' : 'badge-inactive'}" style="width: fit-content;">${student.status}</span>
+
+              <div style="padding: 1.5rem; text-align: center; background: #ffffff;">
+                <div style="display: inline-block; background: #ffffff; padding: 0.75rem; border: 2px dashed #0284c7; border-radius: var(--radius-md); box-shadow: var(--shadow-sm); margin-bottom: 1rem;">
+                  ${qrSvg || '<p>QR Code Ready</p>'}
+                </div>
+
+                <div style="font-size: 1.15rem; font-weight: 800; color: #0f172a; margin-bottom: 0.25rem;">
+                  ${student.fullName}
+                </div>
+                <div style="display: inline-block; background: var(--primary-50); border: 1px solid var(--primary-200); color: var(--primary-700); font-weight: 700; font-size: 0.8rem; padding: 0.2rem 0.65rem; border-radius: var(--radius-full); margin-bottom: 1rem;">
+                  Roll Number: #${student.rollNumber}
+                </div>
+
+                <div style="background: var(--slate-50); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 0.6rem 0.8rem; font-size: 0.75rem; color: var(--slate-600); margin-bottom: 1.25rem; text-align: left;">
+                  <div>Security Token: <code style="font-weight: 700; color: #0f172a;">${card.token}</code></div>
+                  <div style="margin-top: 0.25rem;">Present at gate entrance terminal for attendance check-in.</div>
+                </div>
+
+                <button type="button" class="btn btn-primary" id="btn-print-student-prof-card" style="width: 100%; justify-content: center; background: #0284c7; border-color: #0284c7; font-weight: 700;">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="6 9 6 2 18 2 18 9"></polyline>
+                    <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+                    <rect x="6" y="14" width="12" height="8"></rect>
+                  </svg>
+                  Print Official ID Card
+                </button>
               </div>
             </div>
+
           </div>
         </div>
       `;
+
+      const printCardBtn = container.querySelector('#btn-print-student-prof-card');
+      if (printCardBtn) {
+        printCardBtn.onclick = () => {
+          if (window.AttendanceCardsView) {
+            window.AttendanceCardsView.printSingleCard(student, card, 'student');
+          } else {
+            window.UIUtils.showToast('info', 'ID Card', 'Generating print preview...');
+          }
+        };
+      }
     };
 
     await updateView();
 
     // Subscribe to students collection for live updates
     this.addSubscription('students', () => {
+      if (document.body.contains(container)) updateView();
+    });
+  },
+
+  /**
+   * Student Digital QR Attendance Card & Gate Pass
+   */
+  async renderAttendanceCard(container) {
+    this.cleanupSubscriptions();
+    const studentUser = window.AuthService.getCurrentUser();
+    if (!studentUser) return;
+
+    const updateView = async () => {
+      const student = await window.FirebaseService.getDocument('students', studentUser.studentId || studentUser.id);
+      if (!student) return;
+
+      const cards = await window.FirebaseService.getCollection('attendance_cards');
+      const card = cards.find(c => c.personId === student.id && c.personType === 'student') || {
+        token: `ICC-STD-${student.rollNumber}-${student.id}`,
+        status: 'Active',
+        issuedAt: new Date().toISOString()
+      };
+
+      const qrSvg = window.QRCodeGenerator ? window.QRCodeGenerator.generateSVG(card.token, 160) : '<p>Generating QR...</p>';
+
+      container.innerHTML = `
+        <div class="page-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem;">
+          <div>
+            <div class="breadcrumbs" style="font-size: 0.8rem; color: var(--slate-500); margin-bottom: 0.25rem;">
+              <span>Student Portal</span> <span style="margin: 0 0.4rem;">/</span> <span style="color: var(--primary-600); font-weight: 600;">Attendance Card</span>
+            </div>
+            <h1 style="font-size: 1.6rem; color: var(--slate-900); font-weight: 800; margin: 0;">My Digital Attendance Badge</h1>
+            <p style="color: var(--slate-500); font-size: 0.85rem; margin-top: 0.25rem;">
+              Official Ideal Coaching Center Gate Pass • Present this card or QR code to the entrance scanner for automated attendance check-in
+            </p>
+          </div>
+          <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+            <button type="button" class="btn btn-primary" id="btn-print-my-card">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="6 9 6 2 18 2 18 9"></polyline>
+                <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+                <rect x="6" y="14" width="12" height="8"></rect>
+              </svg>
+              Print Official ID Card
+            </button>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 1.75rem; align-items: start;">
+          <!-- Left: Official Physical-Style Badge -->
+          <div class="data-card" style="margin-bottom: 0; padding: 0; overflow: hidden; border: 2px solid var(--border-color); box-shadow: var(--shadow-lg);">
+            <!-- Card Header -->
+            <div style="background: linear-gradient(135deg, #0284c7 0%, #0f172a 100%); color: #ffffff; padding: 1.25rem 1.5rem; display: flex; align-items: center; justify-content: space-between;">
+              <div style="display: flex; align-items: center; gap: 0.75rem;">
+                <div style="width: 36px; height: 36px; background: rgba(255,255,255,0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 0.95rem;">
+                  ICC
+                </div>
+                <div>
+                  <div style="font-size: 0.95rem; font-weight: 800; letter-spacing: 0.5px;">IDEAL COACHING CENTER</div>
+                  <div style="font-size: 0.75rem; color: #bae6fd;">STUDENT ATTENDANCE GATE PASS</div>
+                </div>
+              </div>
+              <span class="badge" style="background: rgba(255,255,255,0.25); color: #fff; font-size: 0.75rem; font-weight: 700;">
+                Class ${student.class}
+              </span>
+            </div>
+
+            <!-- Card Body -->
+            <div style="padding: 2rem 1.5rem; text-align: center; background: #ffffff;">
+              <div style="display: inline-block; background: #ffffff; padding: 0.75rem; border: 2px dashed #cbd5e1; border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); margin-bottom: 1.25rem;">
+                ${qrSvg}
+              </div>
+
+              <h2 style="font-size: 1.35rem; font-weight: 800; color: var(--slate-900); margin: 0 0 0.25rem 0;">
+                ${student.fullName}
+              </h2>
+              <div style="display: inline-block; background: var(--primary-50); border: 1px solid var(--primary-200); color: var(--primary-700); font-weight: 700; font-size: 0.85rem; padding: 0.2rem 0.75rem; border-radius: var(--radius-full); margin-bottom: 1.25rem;">
+                Roll Number: #${student.rollNumber}
+              </div>
+
+              <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem; text-align: left; background: var(--slate-50); padding: 1rem; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+                <div>
+                  <span style="font-size: 0.725rem; color: var(--slate-500); text-transform: uppercase; font-weight: 600; display: block;">Father's Name</span>
+                  <strong style="font-size: 0.875rem; color: var(--slate-800);">${student.fatherName}</strong>
+                </div>
+                <div>
+                  <span style="font-size: 0.725rem; color: var(--slate-500); text-transform: uppercase; font-weight: 600; display: block;">Stream / Group</span>
+                  <strong style="font-size: 0.875rem; color: var(--slate-800);">${student.group}</strong>
+                </div>
+                <div>
+                  <span style="font-size: 0.725rem; color: var(--slate-500); text-transform: uppercase; font-weight: 600; display: block;">Pass Status</span>
+                  <span class="badge badge-paid" style="margin-top: 0.2rem;">${card.status}</span>
+                </div>
+                <div>
+                  <span style="font-size: 0.725rem; color: var(--slate-500); text-transform: uppercase; font-weight: 600; display: block;">Pass Token</span>
+                  <span style="font-size: 0.75rem; color: var(--slate-600); font-family: monospace; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${card.token}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Card Footer -->
+            <div style="background: var(--slate-100); padding: 0.75rem 1.5rem; border-top: 1px solid var(--border-color); text-align: center; font-size: 0.75rem; color: var(--slate-500);">
+              Official security pass issued by Ideal Coaching Center Administration
+            </div>
+          </div>
+
+          <!-- Right: Instructions and Tips -->
+          <div class="data-card" style="margin-bottom: 0;">
+            <div class="data-card-header">
+              <h3 class="data-card-title">How to Use Your Gate Pass</h3>
+            </div>
+            <div style="padding: 1.5rem; display: flex; flex-direction: column; gap: 1.25rem;">
+              <div style="display: flex; gap: 1rem; align-items: flex-start;">
+                <div style="width: 32px; height: 32px; border-radius: 50%; background: var(--primary-100); color: var(--primary-700); display: flex; align-items: center; justify-content: center; font-weight: 800; flex-shrink: 0;">1</div>
+                <div>
+                  <strong style="color: var(--slate-900); font-size: 0.95rem; display: block;">Save or Print Your Pass</strong>
+                  <p style="color: var(--slate-600); font-size: 0.85rem; margin-top: 0.25rem; line-height: 1.4;">
+                    Click the <strong>Print Official ID Card</strong> button to print a wallet-sized physical badge, or save this screen on your smartphone.
+                  </p>
+                </div>
+              </div>
+
+              <div style="display: flex; gap: 1rem; align-items: flex-start;">
+                <div style="width: 32px; height: 32px; border-radius: 50%; background: var(--primary-100); color: var(--primary-700); display: flex; align-items: center; justify-content: center; font-weight: 800; flex-shrink: 0;">2</div>
+                <div>
+                  <strong style="color: var(--slate-900); font-size: 0.95rem; display: block;">Scan at Center Entrance</strong>
+                  <p style="color: var(--slate-600); font-size: 0.85rem; margin-top: 0.25rem; line-height: 1.4;">
+                    Show the QR code to the entrance scanner camera upon arrival. The system will chime and mark you <strong>Present</strong> with the exact arrival time.
+                  </p>
+                </div>
+              </div>
+
+              <div style="display: flex; gap: 1rem; align-items: flex-start;">
+                <div style="width: 32px; height: 32px; border-radius: 50%; background: var(--primary-100); color: var(--primary-700); display: flex; align-items: center; justify-content: center; font-weight: 800; flex-shrink: 0;">3</div>
+                <div>
+                  <strong style="color: var(--slate-900); font-size: 0.95rem; display: block;">Real-Time Record Verification</strong>
+                  <p style="color: var(--slate-600); font-size: 0.85rem; margin-top: 0.25rem; line-height: 1.4;">
+                    Your attendance percentage and monthly working-day metrics update immediately on your dashboard and parents' SMS/portal records.
+                  </p>
+                </div>
+              </div>
+
+              <div style="background: var(--primary-50); border: 1px solid var(--primary-200); padding: 1rem; border-radius: var(--radius-md); font-size: 0.85rem; color: var(--primary-800); margin-top: 0.5rem;">
+                <strong>Lost your card?</strong> If you misplace your physical card, contact the administration office or regenerate your digital pass directly from this page anytime.
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      const printBtn = container.querySelector('#btn-print-my-card');
+      if (printBtn) {
+        printBtn.onclick = () => {
+          if (window.AttendanceCardsView && typeof window.AttendanceCardsView.printSingleCard === 'function') {
+            window.AttendanceCardsView.printSingleCard(student, card, 'student');
+          } else {
+            window.print();
+          }
+        };
+      }
+    };
+
+    await updateView();
+
+    this.addSubscription('students', () => {
+      if (document.body.contains(container)) updateView();
+    });
+    this.addSubscription('attendance_cards', () => {
       if (document.body.contains(container)) updateView();
     });
   }
