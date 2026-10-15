@@ -1714,4 +1714,152 @@ body.role-teacher .cloud-sync-banner,
   box-shadow: 0 2px 6px rgba(37, 99, 235, 0.35);
 }
 
+/* --------------------------------------------------------------------------
+   9. TOUCHLESS QR GATE TERMINAL & STEP GUIDES
+   -------------------------------------------------------------------------- */
+.scanner-viewport-box {
+  position: relative;
+  width: 100%;
+  height: 420px;
+  background: #090d16;
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 3px solid #334155;
+  box-shadow: 0 10px 35px rgba(0, 0, 0, 0.45);
+  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+.scanner-viewport-box.scanner-success-flash {
+  border-color: #10b981 !important;
+  box-shadow: 0 0 45px rgba(16, 185, 129, 0.85), inset 0 0 35px rgba(16, 185, 129, 0.4) !important;
+}
+
+.scanner-viewport-box.scanner-warning-flash {
+  border-color: #f59e0b !important;
+  box-shadow: 0 0 45px rgba(245, 158, 11, 0.85), inset 0 0 35px rgba(245, 158, 11, 0.4) !important;
+}
+
+/* High-contrast targeting reticle */
+.scanner-target-reticle {
+  position: absolute;
+  width: 230px;
+  height: 230px;
+  border: 2px dashed rgba(56, 189, 248, 0.6);
+  border-radius: 18px;
+  pointer-events: none;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.25s ease;
+  box-shadow: 0 0 0 9999px rgba(15, 23, 42, 0.32);
+}
+
+.scanner-target-reticle::before {
+  content: 'Aim QR Code Here';
+  position: absolute;
+  bottom: -32px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: #38bdf8;
+  background: rgba(15, 23, 42, 0.9);
+  padding: 4px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  white-space: nowrap;
+}
+
+/* Target reticle corners */
+.scanner-target-reticle .reticle-corner {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  border-color: #38bdf8;
+  border-style: solid;
+}
+.reticle-corner-tl { top: -2px; left: -2px; border-width: 4px 0 0 4px; border-top-left-radius: 14px; }
+.reticle-corner-tr { top: -2px; right: -2px; border-width: 4px 4px 0 0; border-top-right-radius: 14px; }
+.reticle-corner-bl { bottom: -2px; left: -2px; border-width: 0 0 4px 4px; border-bottom-left-radius: 14px; }
+.reticle-corner-br { bottom: -2px; right: -2px; border-width: 0 4px 4px 0; border-bottom-right-radius: 14px; }
+
+/* 3-Step Instruction Guide Grid */
+.attendance-steps-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+@media (max-width: 768px) {
+  .attendance-steps-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.attendance-step-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: var(--radius-lg);
+  padding: 1rem 1.15rem;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s;
+}
+
+.attendance-step-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--primary-300);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+}
+
+.attendance-step-number {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary-600) 0%, var(--primary-800) 100%);
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 0.875rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.3);
+}
+
+.attendance-step-content h4 {
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0 0 0.2rem 0;
+}
+
+.attendance-step-content p {
+  font-size: 0.775rem;
+  color: #475569;
+  line-height: 1.35;
+  margin: 0;
+  font-weight: 500;
+}
+
+/* Diagnostics pill */
+.scanner-diag-pill {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #94a3b8;
+  background: rgba(15, 23, 42, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+
+
 
